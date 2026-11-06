@@ -40,7 +40,37 @@ TLS-Laufzeit. Nach Änderungen einfach `sudo ./setup.sh accesspoint dns tls` ern
 | `dns`         | [lib/50-dns.sh](lib/50-dns.sh)                 | dnsmasq nur auf `wlan0`: DHCP + `einlass.lan → 10.42.0.1`, kein Upstream                                         |
 | `rtc`         | [lib/60-rtc.sh](lib/60-rtc.sh)                 | I²C an, DS3231-Overlay **nur wenn Modul erkannt**, `fake-hwclock` entfernen                                      |
 | `tls`         | [lib/70-tls.sh](lib/70-tls.sh)                 | Self-signed-Zertifikat in `/etc/einlass/tls/` (nur bei NTP-synchroner Uhr)                                       |
+| `hostd`       | [lib/90-hostd.sh](lib/90-hostd.sh)             | Host-Dienst `einlass-hostd` für die API: Zeit setzen, RTC schreiben, Herunterfahren                              |
 | `kiosk`       | [lib/80-kiosk.sh](lib/80-kiosk.sh)             | cage + Chromium auf dem DSI-Display (Hochformat), unsichtbarer Cursor, Statusseite mit WLAN-/App-QR-Code und Uhr |
+
+## Host-Dienst `einlass-hostd`
+
+Die API läuft in Docker und darf weder die Uhr stellen noch den Pi herunterfahren. Das übernimmt
+[`files/einlass-hostd`](files/einlass-hostd) (Python, nur Standardbibliothek) über einen Unix-Socket:
+
+| Methode | Pfad        | Wirkung                                                                         |
+| ------- | ----------- | ------------------------------------------------------------------------------- |
+| GET     | `/health`   | `{"ok": true}`                                                                  |
+| GET     | `/time`     | Systemzeit, NTP-Status, RTC vorhanden/Zeit, letzte bekannte Zeit                |
+| POST    | `/time`     | `{"time": "2026-11-06T20:15:00Z", "source": "login"}` → Systemzeit + RTC setzen |
+| POST    | `/shutdown` | Pi nach 2 s herunterfahren                                                      |
+| POST    | `/reboot`   | Pi nach 2 s neu starten                                                         |
+
+- Socket `/run/einlass/hostd.sock`, Rechte `0660 root:einlass`. Der API-Container bekommt
+  `group_add: [<GID von einlass>]` und mountet `/run/einlass`
+- Fachliche Regeln (Schwelle 30 s, Untergrenze, Sperrzeit, aktive Veranstaltung) prüft die **API**.
+  Der Dienst lehnt nur Unplausibles ab (ohne Zeitzone, Jahr außerhalb 2024–2100)
+- Speichert jede Minute die **letzte bekannte Zeit** (`/var/lib/einlass/last-known-time`) und setzt die mtime
+  der Uhr-Datei von systemd-timesyncd. Liegt die Systemzeit beim Start davor, wird sie vorgestellt
+- Bei NTP-synchroner Uhr und vorhandener RTC wird die RTC stündlich nachgestellt. NTP gibt es nur über
+  `eth0`, weil das WLAN keine Route nach außen hat
+- Gehärteter systemd-Dienst (`ProtectSystem=strict`, `PrivateNetwork`, nur `AF_UNIX`, eingeschränkte Capabilities)
+
+Test vom Pi aus:
+
+```bash
+sudo curl -s --unix-socket /run/einlass/hostd.sock http://hostd/time
+```
 
 ## Kiosk
 

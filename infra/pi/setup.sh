@@ -6,7 +6,7 @@
 #   sudo ./setup.sh --skip-upgrade   # ohne apt full-upgrade
 #   sudo ./setup.sh dns tls          # nur einzelne Schritte
 #
-# Schritte: base docker firewall accesspoint dns rtc tls kiosk
+# Schritte: base docker firewall accesspoint dns rtc tls hostd kiosk
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -17,7 +17,7 @@ for f in "$SCRIPT_DIR"/lib/[0-9][0-9]-*.sh; do
   . "$f"
 done
 
-ALL_STEPS=(base docker firewall accesspoint dns rtc tls kiosk)
+ALL_STEPS=(base docker firewall accesspoint dns rtc tls hostd kiosk)
 STEPS=()
 export SKIP_UPGRADE=0
 NEEDS_REBOOT=0
