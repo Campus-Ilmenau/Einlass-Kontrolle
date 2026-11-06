@@ -10,6 +10,28 @@ einzeln ([Ergebnis](../planung/M1-machbarkeit-prototyp.md#ergebnis-06112026)).
 - Es gibt **keinen Barcode oder QR-Code**. Die Erfassung läuft deshalb per **OCR**, Fallback ist die manuelle Eingabe
 - Der NFC-Chip (MIFARE DESFire) ist nicht frei auslesbar und wird nicht genutzt
 - Datumsformat auf der Karte: **`TT.MM.JJJJ`**
+
+### Kartenlayout (Querformat, Werte relativ zur Kartenbreite/-höhe)
+
+```
+┌─────┬──────────────────────────────────────────────┐
+│  t  │ Studienausweis ███████   TECHNISCHE UNIV. IL. │  y 0.00–0.15
+│  h  │ ┌───────┐  Nachname                           │  y ≈ 0.33
+│  o  │ │ Foto  │  Vorname                            │  y ≈ 0.40
+│  s  │ │       │  geb. 27.07.1994        ┐ Daten-    │  y ≈ 0.46
+│  k  │ │       │  Matrikel-Nr. 53902     ┘ bereich   │  y ≈ 0.55
+│  a  │ └───────┘                                     │
+│  +  │  Semesterticket gültig bis 30.09.2018  (!)   │  y 0.70–0.93
+└─────┴──────────────────────────────────────────────┘
+ x 0–0.12  Foto x 0.22–0.42   Daten x 0.45–0.71
+```
+
+- **Achtung:** Der wiederbeschreibbare Bereich unten enthält ein **zweites Datum** („gültig bis“) im selben
+  Format. Es darf nie als Geburtsdatum gewertet werden
+- Ausgewerteter Datenbereich (ROI): x 0.40–0.86, y 0.36–0.66
+- **Anker** für die Zuordnung: `geb.` vor dem Geburtsdatum, `Matrikel-Nr.` vor der Matrikelnummer
+- Die Karte glänzt. Spiegelungen über dem Datenbereich sind am Einlass das größte praktische Problem
+  (Karte leicht kippen)
 - Noch zu prüfen: verschiedene Kartengenerationen
 
 ## Erfassung per OCR im Browser
@@ -18,7 +40,8 @@ einzeln ([Ergebnis](../planung/M1-machbarkeit-prototyp.md#ergebnis-06112026)).
   Matrikelnummer und Geburtsdatum zugeschnitten. Vorverarbeitung: Graustufen, Kontrast, Schwellwert
 - OCR mit **Tesseract.js** (WASM) in einem **Web Worker** auf dem Smartphone, nicht auf dem Pi
   - Sprachdaten und WASM werden **lokal vom Pi** ausgeliefert, kein CDN
-  - Zeichen-Whitelist: Ziffern und `.`
+  - Nur der Datenbereich (ROI) wird ausgewertet, PSM 6 (Block), Whitelist: Ziffern, `.`, `-` und die Buchstaben der Anker
+  - Zuordnung bevorzugt über die Anker `geb.` / `Nr.`. Fallback: Kandidaten ohne Daten nach „bis“
 - **Plausibilisierung:**
   - Matrikelnummer `^\d{5}$`
   - Datum gültig und plausibel

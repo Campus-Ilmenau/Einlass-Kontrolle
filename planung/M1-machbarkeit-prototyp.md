@@ -19,7 +19,7 @@ Wegwerf-Code ist hier ausdrücklich erlaubt.
 
 ## Aufgabe 1.2 – OCR-Prototyp
 - [ ] Testset: 5–10 Fotos von Thoskas (unterschiedliches Licht), Einwilligung der Besitzer:innen
-- [ ] Layout vermessen (ROI): für die Matrikelnummer nicht nötig, für das Datum ggf. sinnvoll (siehe Ergebnis)
+- [x] Layout vermessen (ROI) anhand eines Fotos, siehe [konzept/08](../konzept/08-ausweis-scan.md#kartenlayout-querformat-werte-relativ-zur-kartenbreite-höhe)
 - [x] Tesseract.js mit Ziffern-Whitelist auf den Fotos testen, Vorverarbeitung (Graustufen, Schwellwert) ausprobieren
 - [x] Live-Stream-Test im Web Worker: Geschwindigkeit und Zuverlässigkeit auf einem Mittelklasse-Smartphone
 - [x] Stabilisierung über mehrere Frames testen (3 gleiche Treffer)
@@ -41,6 +41,7 @@ Wegwerf-Code ist hier ausdrücklich erlaubt.
 | Erkennung Geburtsdatum | ⚠️ nur in ~10 von 53 Frames, Datum ist der Engpass |
 | Live-Erkennung bis „stabil“ (v1: 3× dasselbe Paar hintereinander) | ⚠️ 11,1 s / 53 Frames, 2. Lauf ohne Ergebnis |
 | Live-Erkennung v2 (Felder getrennt, Fenster 15: Matrikel 3×, Datum 2×; toleranter Datums-Regex; S/W und Grau im Wechsel) | ⏳ Nachtest offen (mit Log v1 rechnerisch ~5 s) |
+| v3: nur Datenbereich (ROI) + Anker `geb.`/`Nr.`, Semesterticket-Datum ausgeschlossen | ⏳ Nachtest offen |
 | Vorgehen | Tesseract.js 7 (LSTM, `eng`), Ziffern-Whitelist, PSM 11, Graustufen + Otsu-Schwelle, Zuschnitt auf Kartenrahmen |
 
 **Entscheidung:** OCR mit Tesseract.js im Browser und self-signed HTTPS werden für M5 übernommen.
