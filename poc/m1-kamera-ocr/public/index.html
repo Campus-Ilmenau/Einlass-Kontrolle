@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111418" />
+    <title>M1 – Kamera &amp; OCR Test</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>M1 · Kamera &amp; OCR</h1>
+      <p class="sub">Machbarkeitstest – alle Bilder bleiben auf diesem Gerät.</p>
+    </header>
+
+    <section id="checks" class="card">
+      <h2>1 · Umgebung</h2>
+      <ul id="checklist"></ul>
+    </section>
+
+    <section class="card">
+      <h2>2 · Kamera</h2>
+      <div class="buttons">
+        <button id="btn-start">Kamera starten</button>
+        <button id="btn-torch" hidden>Licht an</button>
+        <button id="btn-stop" class="secondary" hidden>Stopp</button>
+      </div>
+      <div id="viewer" hidden>
+        <video id="video" playsinline muted></video>
+        <div id="frame">
+          <div id="roi"></div>
+          <span>Thoska quer, Foto links</span>
+        </div>
+      </div>
+      <p id="cam-info" class="muted"></p>
+    </section>
+
+    <section class="card">
+      <h2>3 · OCR</h2>
+      <div class="buttons">
+        <button id="btn-snap" disabled>Einzelbild erkennen</button>
+        <button id="btn-live" disabled>Live-Erkennung</button>
+        <label class="file">
+          Foto wählen
+          <input id="file" type="file" accept="image/*" />
+        </label>
+      </div>
+      <label class="toggle"
+        ><input id="opt-threshold" type="checkbox" checked /> Schwarz/Weiß-Schwelle (Otsu) für
+        Einzelbild – Live wechselt automatisch</label
+      >
+      <label class="toggle"
+        ><input id="opt-roi" type="checkbox" checked /> Nur Datenbereich auswerten (gestrichelter
+        Rahmen)</label
+      >
+      <p id="ocr-status" class="muted">OCR wird beim ersten Erkennen geladen …</p>
+      <div id="result" class="result" hidden>
+        <div class="row"><span>Matrikel</span><strong id="r-matrikel">–</strong></div>
+        <div class="row"><span>Geburtsdatum</span><strong id="r-date">–</strong></div>
+        <div class="row"><span>Dauer</span><strong id="r-time">–</strong></div>
+        <details>
+          <summary>Rohtext &amp; Kandidaten</summary>
+          <pre id="r-raw"></pre>
+        </details>
+      </div>
+      <canvas id="preview"></canvas>
+    </section>
+
+    <section class="card">
+      <h2>4 · Protokoll</h2>
+      <div class="buttons">
+        <button id="btn-copy" class="secondary">Bericht kopieren</button>
+        <button id="btn-clear" class="secondary">Leeren</button>
+      </div>
+      <pre id="log"></pre>
+    </section>
+
+    <script src="vendor/tesseract/tesseract.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

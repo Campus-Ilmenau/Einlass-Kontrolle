@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""einlass-hostd – schmaler Host-Dienst für die Einlass-Kontrolle.
+
+Die API läuft in Docker und darf weder die Systemzeit setzen noch den Pi herunterfahren.
+Dieser Dienst bietet genau diese Aktionen über einen Unix-Socket an, der nur für die
+Gruppe `einlass` zugänglich ist (der API-Container bekommt diese Gruppe).
+
+Endpunkte (HTTP/1.1 über Unix-Socket, JSON):
+  GET  /health    → {"ok": true}
+  GET  /time      → Zeitstatus (Systemzeit, RTC, NTP, letzte bekannte Zeit)
+  POST /time      {"time": "2026-11-06T20:15:00Z", "source": "login"} → setzt Systemzeit (+ RTC)
+  POST /shutdown  → fährt den Pi herunter (verzögert, damit die Antwort noch rausgeht)
+  POST /reboot    → startet den Pi neu
+
+Fachliche Regeln (Schwellwerte, Untergrenze, Sperrzeit …) prüft die API. Hier wird nur
+grob plausibilisiert, damit der Socket nie eine völlig unsinnige Zeit setzen kann.
+
+Zusätzlich im Hintergrund:
+  - jede Minute die aktuelle Zeit als "letzte bekannte Zeit" speichern
+    (und die Uhr-Datei von systemd-timesyncd anfassen → Wiederherstellung nach Stromausfall)
+  - beim Start: Systemzeit < letzte bekannte Zeit → auf letzte bekannte Zeit vorstellen
+  - bei NTP-synchroner Uhr und vorhandener RTC: RTC stündlich nachstellen
+"""
+
+import grp
+import json
+import os
+import socketserver
+import subprocess
+import sys
+import threading
+import time
+from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler
+
+SOCKET_PATH = os.environ.get("EINLASS_HOSTD_SOCKET", "/run/einlass/hostd.sock")
+SOCKET_GROUP = os.environ.get("EINLASS_HOSTD_GROUP", "einlass")
+STATE_DIR = os.environ.get("EINLASS_STATE_DIR", "/var/lib/einlass")
+LAST_KNOWN_FILE = os.path.join(STATE_DIR, "last-known-time")
+TIMESYNC_CLOCK = "/var/lib/systemd/timesync/clock"
+RTC_DEVICE = "/dev/rtc0"
+
+MIN_YEAR = 2024
+MAX_YEAR = 2100
+TICK_SECONDS = 60
+RTC_SYNC_INTERVAL = 3600
+MAX_BODY = 1024
+
+_lock = threading.Lock()
+_state = {"last_set": None, "last_rtc_write": None}
+
+
+def log(msg: str) -> None:
+    print(msg, file=sys.stderr, flush=True)
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def iso(dt: datetime | None) -> str | None:
+    return dt.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z") if dt else None
+
+
+def rtc_present() -> bool:
+    return os.path.exists(RTC_DEVICE)
+
+
+def ntp_synchronized() -> bool:
+    try:
+        out = subprocess.run(
+            ["timedatectl", "show", "-p", "NTPSynchronized", "--value"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return out.stdout.strip() == "yes"
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def read_rtc() -> str | None:
+    if not rtc_present():
+        return None
+    try:
+        out = subprocess.run(["hwclock", "-r", "--utc"], capture_output=True, text=True, timeout=5)
+        return out.stdout.strip() or None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def write_rtc() -> bool:
+    if not rtc_present():
+        return False
+    res = subprocess.run(["hwclock", "-w", "--utc"], capture_output=True, text=True, timeout=10)
+    if res.returncode == 0:
+        _state["last_rtc_write"] = utc_now()
+        return True
+    log(f"hwclock -w fehlgeschlagen: {res.stderr.strip()}")
+    return False
+
+
+def read_last_known() -> datetime | None:
+    try:
+        with open(LAST_KNOWN_FILE, encoding="ascii") as f:
+            return datetime.fromisoformat(f.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def save_last_known(dt: datetime) -> None:
+    os.makedirs(STATE_DIR, exist_ok=True)
+    tmp = LAST_KNOWN_FILE + ".tmp"
+    with open(tmp, "w", encoding="ascii") as f:
+        f.write(iso(dt) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, LAST_KNOWN_FILE)
+    # systemd-timesyncd stellt beim Boot die Uhr mindestens auf die mtime dieser Datei
+    try:
+        ts = dt.timestamp()
+        os.utime(TIMESYNC_CLOCK, (ts, ts))
+    except OSError:
+        pass
+
+
+def set_system_time(dt: datetime) -> None:
+    time.clock_settime(time.CLOCK_REALTIME, dt.timestamp())
+
+
+def time_status() -> dict:
+    return {
+        "systemTime": iso(utc_now()),
+        "timezone": "Europe/Berlin",
+        "ntpSynchronized": ntp_synchronized(),
+        "rtcPresent": rtc_present(),
+        "rtcTime": read_rtc(),
+        "lastKnownTime": iso(read_last_known()),
+        "lastSetAt": iso(_state["last_set"]),
+        "lastRtcWrite": iso(_state["last_rtc_write"]),
+    }
+
+
+def parse_time(value) -> datetime:
+    if not isinstance(value, str):
+        raise ValueError("'time' muss ein ISO-8601-String sein")
+    dt = datetime.fromisoformat(value.strip())
+    if dt.tzinfo is None:
+        raise ValueError("'time' braucht eine Zeitzone (z. B. ...Z)")
+    if not MIN_YEAR <= dt.year <= MAX_YEAR:
+        raise ValueError(f"Jahr {dt.year} nicht plausibel ({MIN_YEAR}–{MAX_YEAR})")
+    return dt.astimezone(timezone.utc)
+
+
+def delayed(cmd: list[str], delay: float = 2.0) -> None:
+    def run():
+        time.sleep(delay)
+        subprocess.run(cmd, check=False)
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "einlass-hostd/1"
+
+    def address_string(self) -> str:  # Unix-Socket hat keine IP
+        return "unix"
+
+    def log_message(self, fmt, *args) -> None:
+        log("%s %s" % (self.command, fmt % args))
+
+    def _json(self, status: int, body: dict) -> None:
+        data = json.dumps(body).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _body(self) -> dict:
+        length = int(self.headers.get("Content-Length") or 0)
+        if length > MAX_BODY:
+            raise ValueError("Body zu groß")
+        raw = self.rfile.read(length) if length else b"{}"
+        body = json.loads(raw or b"{}")
+        if not isinstance(body, dict):
+            raise ValueError("JSON-Objekt erwartet")
+        return body
+
+    def do_GET(self) -> None:  # noqa: N802
+        if self.path == "/health":
+            self._json(200, {"ok": True})
+        elif self.path == "/time":
+            self._json(200, time_status())
+        else:
+            self._json(404, {"error": "NOT_FOUND"})
+
+    def do_POST(self) -> None:  # noqa: N802
+        try:
+            body = self._body()
+        except (ValueError, json.JSONDecodeError) as e:
+            self._json(400, {"error": "BAD_REQUEST", "message": str(e)})
+            return
+
+        if self.path == "/time":
+            try:
+                target = parse_time(body.get("time"))
+            except ValueError as e:
+                self._json(400, {"error": "INVALID_TIME", "message": str(e)})
+                return
+            with _lock:
+                before = utc_now()
+                set_system_time(target)
+                _state["last_set"] = utc_now()
+                rtc_written = write_rtc()
+                save_last_known(utc_now())
+            drift = round((target - before).total_seconds(), 3)
+            log(f"Zeit gesetzt: {iso(before)} → {iso(target)} (Δ {drift} s, Quelle: {body.get('source', '?')}, RTC: {rtc_written})")
+            self._json(200, {"previous": iso(before), "now": iso(utc_now()), "driftSeconds": drift, "rtcWritten": rtc_written})
+        elif self.path == "/shutdown":
+            log("Herunterfahren angefordert")
+            save_last_known(utc_now())
+            self._json(202, {"ok": True, "action": "poweroff"})
+            delayed(["systemctl", "poweroff"])
+        elif self.path == "/reboot":
+            log("Neustart angefordert")
+            save_last_known(utc_now())
+            self._json(202, {"ok": True, "action": "reboot"})
+            delayed(["systemctl", "reboot"])
+        else:
+            self._json(404, {"error": "NOT_FOUND"})
+
+
+class Server(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
+    daemon_threads = True
+
+
+def apply_floor_on_start() -> None:
+    """Nach Stromausfall ohne RTC: Uhr nie vor die letzte bekannte Zeit stellen."""
+    last = read_last_known()
+    now = utc_now()
+    if last and now < last:
+        set_system_time(last)
+        log(f"Systemzeit {iso(now)} lag vor letzter bekannter Zeit → auf {iso(last)} vorgestellt")
+
+
+def ticker(stop: threading.Event) -> None:
+    while not stop.wait(TICK_SECONDS):
+        with _lock:
+            now = utc_now()
+            last = read_last_known()
+            if last is None or now >= last:
+                save_last_known(now)
+            last_rtc = _state["last_rtc_write"]
+            if rtc_present() and ntp_synchronized() and (
+                last_rtc is None or (now - last_rtc).total_seconds() >= RTC_SYNC_INTERVAL
+            ):
+                if write_rtc():
+                    log("RTC aus NTP-Zeit nachgestellt")
+
+
+def main() -> None:
+    apply_floor_on_start()
+    save_last_known(max(utc_now(), read_last_known() or utc_now()))
+
+    os.makedirs(os.path.dirname(SOCKET_PATH), exist_ok=True)
+    if os.path.exists(SOCKET_PATH):
+        os.unlink(SOCKET_PATH)
+    server = Server(SOCKET_PATH, Handler)
+    gid = grp.getgrnam(SOCKET_GROUP).gr_gid
+    os.chown(SOCKET_PATH, 0, gid)
+    os.chmod(SOCKET_PATH, 0o660)
+
+    stop = threading.Event()
+    threading.Thread(target=ticker, args=(stop,), daemon=True).start()
+    log(f"einlass-hostd lauscht auf {SOCKET_PATH} (Gruppe {SOCKET_GROUP})")
+    try:
+        server.serve_forever()
+    finally:
+        stop.set()
+        save_last_known(utc_now())
+
+
+if __name__ == "__main__":
+    main()
