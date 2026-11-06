@@ -9,8 +9,12 @@ const preview = $('#preview');
 const logEl = $('#log');
 
 const MATRIKEL_RE = /(?<!\d)\d{5}(?!\d)/g;
-const DATE_RE = /(?<!\d)(\d{1,2})[.,](\d{1,2})[.,](\d{4})(?!\d)/g;
-const STABLE_HITS = 3; // so oft muss dasselbe Ergebnis hintereinander erkannt werden
+// TT.MM.JJJJ – Punkte werden von der OCR oft verschluckt oder als Komma/Leerzeichen gelesen
+const DATE_RE = /(?<!\d)(\d{2})[.,\s]?(\d{2})[.,\s]?(\d{4})(?!\d)/g;
+// Stabilisierung je Feld innerhalb eines gleitenden Fensters (nicht zwingend hintereinander)
+const WINDOW = 15;
+const NEED_MATRIKEL = 3;
+const NEED_DATE = 2;
 
 let stream = null;
 let track = null;
@@ -18,7 +22,6 @@ let torchOn = false;
 let worker = null;
 let workerLoading = null;
 let liveRunning = false;
-let history = [];
 
 // ───────────────────────── Protokoll ─────────────────────────
 function log(msg) {
@@ -142,7 +145,7 @@ function grabFrameRegion() {
 
 // ───────────────────────── 3 · Vorverarbeitung + OCR ─────────────────────────
 /** Graustufen, Kontrast strecken, optional Otsu-Schwellwert. Skaliert auf ~1600 px Breite. */
-function preprocess(src) {
+function preprocess(src, useThreshold) {
   const targetW = Math.min(1600, Math.max(1000, src.width));
   const scale = targetW / src.width;
   preview.width = Math.round(src.width * scale);
@@ -165,7 +168,7 @@ function preprocess(src) {
   for (let j = 0; j < gray.length; j++) gray[j] = ((gray[j] - min) * 255) / range;
 
   let threshold = -1;
-  if ($('#opt-threshold').checked) threshold = otsu(gray);
+  if (useThreshold) threshold = otsu(gray);
 
   for (let i = 0, j = 0; i < d.length; i += 4, j++) {
     const v = threshold < 0 ? gray[j] : gray[j] > threshold ? 255 : 0;
@@ -252,10 +255,10 @@ function parse(text) {
   return { matrikel, dates: [...new Set(dates)] };
 }
 
-async function recognize(source, label) {
+async function recognize(source, label, useThreshold = $('#opt-threshold').checked) {
   const w = await getWorker();
   const t0 = performance.now();
-  const input = preprocess(source);
+  const input = preprocess(source, useThreshold);
   const { data } = await w.recognize(input);
   const ms = Math.round(performance.now() - t0);
   const { matrikel, dates } = parse(data.text);
@@ -268,9 +271,9 @@ async function recognize(source, label) {
   $('#r-raw').textContent =
     `Konfidenz: ${Math.round(data.confidence)} %\n\n${data.text.trim()}\n\n` +
     `Matrikel-Kandidaten: ${matrikel.join(', ') || '–'}\nDatum-Kandidaten: ${dates.join(', ') || '–'}`;
-  log(
-    `${label}: ${ms} ms, Matrikel=[${matrikel}] Datum=[${dates}] Konfidenz=${Math.round(data.confidence)}%`,
-  );
+  const mode = useThreshold ? 'S/W' : 'Grau';
+  const raw = dates.length ? '' : ` Roh="${data.text.trim().replace(/\s+/g, ' ').slice(0, 80)}"`;
+  log(`${label} [${mode}]: ${ms} ms, Matrikel=[${matrikel}] Datum=[${dates}]${raw}`);
   return { matrikel, dates, ms };
 }
 
@@ -310,37 +313,63 @@ function stopLive() {
   $('#btn-live').classList.remove('active');
 }
 
+/** Häufigster Wert im Fenster, wenn er oft genug vorkommt – sonst null. */
+function vote(values, need) {
+  const counts = new Map();
+  for (const v of values) if (v) counts.set(v, (counts.get(v) || 0) + 1);
+  let best = null;
+  let bestCount = 0;
+  for (const [v, c] of counts) {
+    if (c > bestCount) {
+      best = v;
+      bestCount = c;
+    }
+  }
+  return bestCount >= need ? best : null;
+}
+
 async function startLive() {
   liveRunning = true;
-  history = [];
+  const mHist = [];
+  const dHist = [];
   frameEl.classList.remove('found');
   $('#btn-live').textContent = 'Live stoppen';
   $('#btn-live').classList.add('active');
   const t0 = performance.now();
   let frames = 0;
-  log('Live-Erkennung gestartet');
+  let matrikelAt = null;
+  log('Live-Erkennung gestartet (abwechselnd S/W und Grau)');
 
   while (liveRunning && stream) {
     frames++;
     let r;
     try {
-      r = await recognize(grabFrameRegion(), `Live #${frames}`);
+      // abwechselnd mit und ohne Schwellwert – je nach Licht klappt mal das eine, mal das andere
+      r = await recognize(grabFrameRegion(), `Live #${frames}`, frames % 2 === 1);
     } catch (e) {
       log('OCR-Fehler: ' + e.message);
       break;
     }
-    // Eindeutiges Paar aus genau einer Matrikel und genau einem Datum
-    const key =
-      r.matrikel.length === 1 && r.dates.length === 1 ? `${r.matrikel[0]}|${r.dates[0]}` : null;
-    history.push(key);
-    const last = history.slice(-STABLE_HITS);
-    if (key && last.length === STABLE_HITS && last.every((k) => k === key)) {
-      const total = Math.round(performance.now() - t0);
+    // Nur eindeutige Lesungen zählen
+    mHist.push(r.matrikel.length === 1 ? r.matrikel[0] : null);
+    dHist.push(r.dates.length === 1 ? r.dates[0] : null);
+    if (mHist.length > WINDOW) mHist.shift();
+    if (dHist.length > WINDOW) dHist.shift();
+
+    const m = vote(mHist, NEED_MATRIKEL);
+    const d = vote(dHist, NEED_DATE);
+    const elapsed = Math.round(performance.now() - t0);
+    if (m && matrikelAt === null) matrikelAt = elapsed;
+    $('#ocr-status').textContent = `Matrikel: ${m ? '✓ ' + m : '…'} · Datum: ${d ? '✓ ' + d : '…'}`;
+
+    if (m && d) {
       frameEl.classList.add('found');
       navigator.vibrate?.(150);
-      log(`✅ STABIL erkannt nach ${frames} Frames / ${total} ms: ${key.replace('|', ' · ')}`);
+      log(
+        `✅ STABIL nach ${frames} Frames / ${elapsed} ms (Matrikel schon nach ${matrikelAt} ms): ${m} · ${d}`,
+      );
       $('#ocr-status').textContent =
-        `Stabil erkannt in ${(total / 1000).toFixed(1)} s (${frames} Frames)`;
+        `✅ ${m} · ${d} – stabil in ${(elapsed / 1000).toFixed(1)} s (${frames} Frames)`;
       break;
     }
   }
