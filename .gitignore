@@ -1,0 +1,27 @@
+# Abhängigkeiten & Builds
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Umgebungs- und Geheimnisdateien
+.env
+.env.*
+!.env.example
+infra/pi/config.env
+
+# Zertifikate / Schlüssel
+*.pem
+*.key
+*.crt
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+
+# Prototypen: heruntergeladene Bibliotheken
+poc/*/public/vendor/
