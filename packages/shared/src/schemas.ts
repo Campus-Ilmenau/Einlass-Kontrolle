@@ -107,3 +107,141 @@ export const AddEntriesRequestSchema = z.object({
   matrikelnummern: z.array(MatrikelSchema).min(1).max(20000),
 });
 export type AddEntriesRequest = z.infer<typeof AddEntriesRequestSchema>;
+
+// ─── Admin: Kontrolleur:innen ──────────────────────────────────────────────
+
+export const UserStatusSchema = z.enum(['ACTIVE', 'LOCKED', 'DISABLED', 'EXPIRED']);
+export type UserStatus = z.infer<typeof UserStatusSchema>;
+
+export const AdminUserSchema = UserSchema.extend({
+  status: UserStatusSchema,
+  disabled: z.boolean(),
+  lockedUntil: InstantSchema.nullable(),
+  lastLoginAt: InstantSchema.nullable(),
+  createdAt: InstantSchema,
+});
+export type AdminUser = z.infer<typeof AdminUserSchema>;
+
+export const UpdateUserRequestSchema = z
+  .object({
+    name: UserNameSchema,
+    password: PasswordSchema,
+    role: RoleSchema,
+    disabled: z.boolean(),
+    validUntil: InstantSchema.nullable(),
+    /** Sperre nach Fehlversuchen aufheben */
+    unlock: z.literal(true),
+  })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: 'Keine Änderung angegeben' });
+export type UpdateUserRequest = z.infer<typeof UpdateUserRequestSchema>;
+
+// ─── Admin: Freilisten ─────────────────────────────────────────────────────
+
+export const FreeListSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  description: z.string().nullable(),
+  entryCount: z.number().int(),
+  createdAt: InstantSchema,
+  updatedAt: InstantSchema,
+});
+export type FreeList = z.infer<typeof FreeListSchema>;
+
+export const UpdateFreeListRequestSchema = FreeListRequestSchema.partial().refine(
+  (v) => Object.keys(v).length > 0,
+  { message: 'Keine Änderung angegeben' },
+);
+export type UpdateFreeListRequest = z.infer<typeof UpdateFreeListRequestSchema>;
+
+export const FreeListEntrySchema = z.object({
+  id: z.uuid(),
+  matrikelnummer: MatrikelSchema,
+  note: z.string().nullable(),
+  createdAt: InstantSchema,
+});
+export type FreeListEntry = z.infer<typeof FreeListEntrySchema>;
+
+export const EntriesQuerySchema = z.object({
+  search: z.string().trim().max(5).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(500).default(50),
+});
+
+export const EntriesPageSchema = z.object({
+  items: z.array(FreeListEntrySchema),
+  total: z.number().int(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+});
+export type EntriesPage = z.infer<typeof EntriesPageSchema>;
+
+export const AddEntriesResultSchema = z.object({
+  added: z.number().int(),
+  alreadyInList: z.number().int(),
+});
+export type AddEntriesResult = z.infer<typeof AddEntriesResultSchema>;
+
+export const ImportModeSchema = z.enum(['append', 'replace']);
+export type ImportMode = z.infer<typeof ImportModeSchema>;
+
+export const ImportReportSchema = z.object({
+  mode: ImportModeSchema,
+  format: z.enum(['csv', 'xlsx']),
+  /** Spalte, aus der gelesen wurde (Überschrift oder Nummer, 1-basiert) */
+  column: z.string(),
+  rows: z.number().int(),
+  added: z.number().int(),
+  alreadyInList: z.number().int(),
+  removed: z.number().int(),
+  duplicatesInFile: z.number().int(),
+  invalid: z.array(z.object({ row: z.number().int(), value: z.string() })),
+  invalidCount: z.number().int(),
+});
+export type ImportReport = z.infer<typeof ImportReportSchema>;
+
+// ─── Admin: Veranstaltungen ────────────────────────────────────────────────
+
+export const EventStatusSchema = z.enum(['PLANNED', 'ACTIVE', 'PAST']);
+export type EventStatus = z.infer<typeof EventStatusSchema>;
+
+export const EventSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  startsAt: InstantSchema,
+  endsAt: InstantSchema,
+  status: EventStatusSchema,
+  lists: z.array(z.object({ id: z.uuid(), name: z.string() })),
+  createdAt: InstantSchema,
+});
+export type Event = z.infer<typeof EventSchema>;
+
+export const UpdateEventRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    startsAt: InstantSchema,
+    endsAt: InstantSchema,
+    listIds: z.array(z.uuid()),
+  })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: 'Keine Änderung angegeben' });
+export type UpdateEventRequest = z.infer<typeof UpdateEventRequestSchema>;
+
+// ─── Admin: Einstellungen ──────────────────────────────────────────────────
+
+export const SettingsSchema = z.object({
+  /** Aufbewahrungsfrist für Scan-Protokolle in Tagen */
+  checkLogRetentionDays: z.number().int().min(1).max(365),
+});
+export type Settings = z.infer<typeof SettingsSchema>;
+
+export const UpdateSettingsRequestSchema = SettingsSchema.partial();
+export type UpdateSettingsRequest = z.infer<typeof UpdateSettingsRequestSchema>;
+
+// ─── Fehler ────────────────────────────────────────────────────────────────
+
+export const ApiErrorSchema = z.object({
+  error: z.string(),
+  message: z.string(),
+});
+export type ApiError = z.infer<typeof ApiErrorSchema>;
