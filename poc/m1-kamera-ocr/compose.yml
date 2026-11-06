@@ -1,0 +1,15 @@
+# M1-Prototyp: Testseite für Kamera + OCR über HTTPS (self-signed) im WLAN des Pi.
+#   docker compose up -d      → https://einlass.lan
+#   docker compose down
+services:
+  poc:
+    image: nginx:1.29-alpine
+    container_name: einlass-poc-m1
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./public:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/einlass/tls:/tls:ro
