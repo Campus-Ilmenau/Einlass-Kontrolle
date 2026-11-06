@@ -1,0 +1,27 @@
+#!/bin/bash
+# Läuft innerhalb von cage (Wayland). Dreht das Display und startet Chromium im Kiosk-Modus.
+set -eu
+# shellcheck source=/dev/null
+. /etc/einlass/kiosk.env  # öffentlich lesbar, ohne Geheimnisse (erzeugt von einlass-display-render)
+
+wlr-randr --output "${DISPLAY_OUTPUT:-DSI-1}" --transform "${DISPLAY_TRANSFORM:-normal}" || true
+
+exec chromium \
+  --ozone-platform=wayland \
+  --kiosk "${KIOSK_URL}" \
+  --incognito \
+  --lang=de-DE \
+  --noerrdialogs \
+  --disable-infobars \
+  --no-first-run \
+  --no-default-browser-check \
+  --disable-translate \
+  --disable-features=Translate,TouchpadOverscrollHistoryNavigation \
+  --overscroll-history-navigation=0 \
+  --disable-pinch \
+  --hide-crash-restore-bubble \
+  --disable-session-crashed-bubble \
+  --password-store=basic \
+  --check-for-update-interval=31536000 \
+  --allow-file-access-from-files \
+  --user-data-dir=/var/lib/einlass-kiosk/chromium

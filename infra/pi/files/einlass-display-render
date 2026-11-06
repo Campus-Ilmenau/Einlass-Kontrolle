@@ -1,0 +1,89 @@
+#!/bin/bash
+# Erzeugt die lokale Statusseite für das Display (QR-Codes für WLAN und App, Uhr).
+# Wird vom Setup und vor jedem Kiosk-Start ausgeführt, damit Änderungen an der Konfiguration greifen.
+set -eu
+# shellcheck source=/dev/null
+. /etc/einlass/config.env
+OUT=/opt/einlass/display
+install -d -m 0755 "$OUT"
+
+# Sonderzeichen im WLAN-QR-Format escapen: \ ; , : "
+wifi_escape() { printf '%s' "$1" | sed -e 's/[\;,:"]/\\&/g'; }
+html_escape() { printf '%s' "$1" | sed -e 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
+
+WIFI_QR="WIFI:T:WPA;S:$(wifi_escape "$WIFI_SSID");P:$(wifi_escape "$WIFI_PASSWORD");;"
+APP_URL="https://${DOMAIN}"
+qrencode -t SVG --svg-path -m 1 -l M --foreground=111418 --background=FFFFFF -o "$OUT/wifi.svg" "$WIFI_QR"
+qrencode -t SVG --svg-path -m 1 -l M --foreground=111418 --background=FFFFFF -o "$OUT/app.svg" "$APP_URL"
+
+SSID_H=$(html_escape "$WIFI_SSID")
+PW_H=$(html_escape "$WIFI_PASSWORD")
+URL_H=$(html_escape "$APP_URL")
+
+cat >"$OUT/index.html.new" <<HTML
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Einlass-Kontrolle</title>
+<style>
+  * { box-sizing: border-box; cursor: none !important; }
+  html, body { margin: 0; height: 100%; background: #111418; color: #e8eaed;
+    font-family: "DejaVu Sans", sans-serif; overflow: hidden; user-select: none; }
+  body { display: flex; flex-direction: column; padding: 28px 32px; gap: 20px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; }
+  h1 { margin: 0; font-size: 34px; letter-spacing: .5px; }
+  .tag { font-size: 18px; color: #9aa3ad; }
+  .step { display: flex; flex-direction: column; align-items: center; gap: 10px;
+    background: #1b1f25; border-radius: 18px; padding: 18px; flex: 1; }
+  .step h2 { margin: 0; font-size: 26px; align-self: flex-start; }
+  .step h2 span { display: inline-block; width: 36px; height: 36px; border-radius: 50%;
+    background: #3b82f6; color: #fff; text-align: center; line-height: 36px; margin-right: 10px; font-size: 22px; }
+  .qr { width: 300px; height: 300px; background: #fff; border-radius: 12px; padding: 10px; }
+  .qr img { width: 100%; height: 100%; }
+  .info { font-size: 22px; text-align: center; line-height: 1.4; }
+  .info b { font-family: "DejaVu Sans Mono", monospace; font-size: 24px; color: #fff; }
+  .hint { font-size: 17px; color: #9aa3ad; text-align: center; }
+  footer { text-align: center; }
+  #time { font-size: 64px; font-weight: bold; font-variant-numeric: tabular-nums; }
+  #date { font-size: 22px; color: #9aa3ad; }
+</style>
+</head>
+<body>
+  <header><h1>Einlass-Kontrolle</h1><span class="tag">${SSID_H}</span></header>
+  <section class="step">
+    <h2><span>1</span>WLAN verbinden</h2>
+    <div class="qr"><img src="wifi.svg" alt=""></div>
+    <div class="info">Netz <b>${SSID_H}</b><br>Passwort <b>${PW_H}</b></div>
+  </section>
+  <section class="step">
+    <h2><span>2</span>App öffnen</h2>
+    <div class="qr"><img src="app.svg" alt=""></div>
+    <div class="info"><b>${URL_H}</b></div>
+    <div class="hint">Zertifikatswarnung einmalig bestätigen</div>
+  </section>
+  <footer><div id="time">--:--:--</div><div id="date"></div></footer>
+<script>
+  const t = document.getElementById('time'), d = document.getElementById('date');
+  function tick() {
+    const n = new Date();
+    t.textContent = n.toLocaleTimeString('de-DE');
+    d.textContent = n.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  }
+  tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>
+HTML
+mv "$OUT/index.html.new" "$OUT/index.html"
+
+# Einstellungen für den Kiosk-Benutzer (config.env selbst ist nur für root lesbar)
+cat >/etc/einlass/kiosk.env.new <<ENV
+DISPLAY_OUTPUT=${DISPLAY_OUTPUT:-DSI-1}
+DISPLAY_TRANSFORM=${DISPLAY_TRANSFORM:-normal}
+KIOSK_URL=${KIOSK_URL:-file://$OUT/index.html}
+ENV
+chmod 0644 /etc/einlass/kiosk.env.new
+mv /etc/einlass/kiosk.env.new /etc/einlass/kiosk.env
+chmod 0644 "$OUT"/*

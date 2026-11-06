@@ -6,7 +6,7 @@
 #   sudo ./setup.sh --skip-upgrade   # ohne apt full-upgrade
 #   sudo ./setup.sh dns tls          # nur einzelne Schritte
 #
-# Schritte: base docker firewall accesspoint dns rtc tls
+# Schritte: base docker firewall accesspoint dns rtc tls kiosk
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -17,7 +17,7 @@ for f in "$SCRIPT_DIR"/lib/[0-9][0-9]-*.sh; do
   . "$f"
 done
 
-ALL_STEPS=(base docker firewall accesspoint dns rtc tls)
+ALL_STEPS=(base docker firewall accesspoint dns rtc tls kiosk)
 STEPS=()
 export SKIP_UPGRADE=0
 NEEDS_REBOOT=0
@@ -42,6 +42,11 @@ if [ ! -f "$EINLASS_CONFIG" ]; then
   log "Konfiguration anlegen: $EINLASS_CONFIG"
   install -m 0600 "$SCRIPT_DIR/config.env.example" "$EINLASS_CONFIG"
 fi
+# Neue Schlüssel aus der Vorlage ergänzen, bestehende Werte bleiben unverändert
+while IFS='=' read -r key value; do
+  case "$key" in '' | \#*) continue ;; esac
+  grep -q "^${key}=" "$EINLASS_CONFIG" || printf '%s=%s\n' "$key" "$value" >>"$EINLASS_CONFIG"
+done <"$SCRIPT_DIR/config.env.example"
 load_config
 if [ -z "${WIFI_PASSWORD:-}" ]; then
   WIFI_PASSWORD=$(random_password 12)
