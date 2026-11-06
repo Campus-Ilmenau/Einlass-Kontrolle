@@ -1,0 +1,168 @@
+#!/bin/bash
+# einlass-update – zieht neue Docker-Images, sobald der Pi Internet hat.
+#
+# Ablauf: Internet? → keine laufende Veranstaltung? → RTC nachstellen → compose.yml aktualisieren
+#         → docker compose pull → (nur bei Änderungen) DB-Backup → Neustart → Healthcheck
+#         → bei Fehler Rollback auf die vorherigen Images.
+#
+# Ausgelöst durch: systemd-Timer (alle 15 min), Netzwerk-Hook (eth0 up), oder manuell:
+#   sudo systemctl start einlass-update     (Log: journalctl -u einlass-update)
+#   sudo einlass-update --force             (auch während einer Veranstaltung)
+set -euo pipefail
+
+APP_DIR=/opt/einlass
+STATE_DIR=/var/lib/einlass
+BACKUP_DIR=$STATE_DIR/backups
+STATUS_FILE=$STATE_DIR/update-status.json
+LOCK_FILE=/run/einlass-update.lock
+KEEP_BACKUPS=10
+REPO_RAW=https://raw.githubusercontent.com/Campus-Ilmenau/Einlass-Kontrolle
+SERVICES=(api proxy)
+
+FORCE=0
+[ "${1:-}" = "--force" ] && FORCE=1
+
+log() { echo "[einlass-update] $*"; }
+
+compose() { docker compose --project-directory "$APP_DIR" -f "$APP_DIR/compose.yml" "$@"; }
+
+write_status() {
+  local result=$1 message=$2
+  install -d -m 0755 "$STATE_DIR"
+  python3 - "$STATUS_FILE" "$result" "$message" <<'PY'
+import json, subprocess, sys, datetime
+path, result, message = sys.argv[1:4]
+def image(svc):
+    try:
+        ref = subprocess.run(["docker", "compose", "--project-directory", "/opt/einlass", "images", "--format", "json", svc],
+                             capture_output=True, text=True, timeout=20).stdout
+        data = json.loads(ref) if ref.strip().startswith("[") else [json.loads(l) for l in ref.splitlines() if l.strip()]
+        return {"image": f'{data[0]["Repository"]}:{data[0]["Tag"]}', "id": data[0]["ID"][:19]} if data else None
+    except Exception:
+        return None
+status = {
+    "lastRun": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+    "result": result,
+    "message": message,
+    "images": {s: image(s) for s in ("api", "proxy")},
+}
+with open(path + ".tmp", "w") as f:
+    json.dump(status, f, indent=2)
+import os; os.replace(path + ".tmp", path)
+PY
+  log "$result: $message"
+}
+
+image_id() { docker image inspect --format '{{.Id}}' "$1" 2>/dev/null || true; }
+
+# Image eines Dienstes laut compose.yml (`config --images <dienst>` liefert auch Abhängigkeiten)
+service_image() {
+  compose config --format json 2>/dev/null |
+    python3 -c 'import json,sys; print(json.load(sys.stdin)["services"][sys.argv[1]]["image"])' "$1"
+}
+
+# ─── 0. nur ein Lauf gleichzeitig ──────────────────────────────────────────
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  log "läuft bereits – Abbruch"
+  exit 0
+fi
+
+[ -f "$APP_DIR/compose.yml" ] || { log "keine Anwendung in $APP_DIR"; exit 0; }
+# shellcheck source=/dev/null
+VERSION=$(. "$APP_DIR/.env" 2>/dev/null && echo "${EINLASS_VERSION:-main}")
+
+# ─── 1. Internet? ──────────────────────────────────────────────────────────
+code=$(curl -s -o /dev/null -m 10 -w '%{http_code}' https://ghcr.io/v2/ || true)
+if [ "$code" = "000" ]; then
+  log "kein Internet – nichts zu tun"
+  exit 0
+fi
+
+# ─── 2. Keine Updates während einer Veranstaltung ──────────────────────────
+if [ "$FORCE" != 1 ]; then
+  display=$(curl -sk -m 5 https://127.0.0.1/api/system/display || true)
+  if echo "$display" | grep -q '"event":{'; then
+    write_status skipped "Veranstaltung läuft – Update verschoben"
+    exit 0
+  fi
+fi
+
+# ─── 3. RTC aus NTP-Zeit nachstellen ───────────────────────────────────────
+if [ -e /dev/rtc0 ] && [ "$(timedatectl show -p NTPSynchronized --value)" = yes ]; then
+  hwclock -w --utc && log "RTC nachgestellt"
+fi
+
+# ─── 4. compose.yml aus dem Repository (gleicher Stand wie die Images) ─────
+ref=$([ "$VERSION" = main ] && echo main || echo "v$VERSION")
+tmp=$(mktemp)
+if curl -sf -m 20 "$REPO_RAW/$ref/infra/docker/compose.yml" -o "$tmp" &&
+  ! cmp -s "$tmp" "$APP_DIR/compose.yml" &&
+  docker compose --project-directory "$APP_DIR" -f "$tmp" config -q 2>/dev/null; then
+  cp "$APP_DIR/compose.yml" "$APP_DIR/compose.yml.bak"
+  install -m 0644 "$tmp" "$APP_DIR/compose.yml"
+  log "compose.yml aktualisiert ($ref)"
+  compose_changed=1
+else
+  compose_changed=0
+fi
+rm -f "$tmp"
+
+# ─── 5. Neue Images? ───────────────────────────────────────────────────────
+declare -A before
+for s in "${SERVICES[@]}"; do
+  img=$(service_image "$s")
+  before[$s]=$(image_id "$img")
+  # Sicherung für den Rollback
+  [ -n "${before[$s]}" ] && docker tag "${before[$s]}" "${img%:*}:rollback"
+done
+
+if ! compose pull --quiet "${SERVICES[@]}"; then
+  write_status failed "docker compose pull fehlgeschlagen"
+  exit 1
+fi
+
+changed=()
+for s in "${SERVICES[@]}"; do
+  [ "$(image_id "$(service_image "$s")")" != "${before[$s]}" ] && changed+=("$s")
+done
+
+if [ ${#changed[@]} -eq 0 ] && [ "$compose_changed" = 0 ]; then
+  write_status current "Images sind aktuell ($VERSION)"
+  exit 0
+fi
+log "neue Images: ${changed[*]:-keine} (compose.yml geändert: $compose_changed)"
+
+# ─── 6. Datenbank sichern ──────────────────────────────────────────────────
+install -d -m 0700 "$BACKUP_DIR"
+backup="$BACKUP_DIR/einlass-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
+if compose exec -T db pg_dump -U einlass einlass </dev/null | gzip >"$backup"; then
+  chmod 0600 "$backup"
+  log "Backup: $backup ($(du -h "$backup" | cut -f1))"
+  # shellcheck disable=SC2012
+  ls -1t "$BACKUP_DIR"/einlass-*.sql.gz | tail -n +$((KEEP_BACKUPS + 1)) | xargs -r rm -f
+else
+  rm -f "$backup"
+  write_status failed "Backup fehlgeschlagen – kein Update"
+  exit 1
+fi
+
+# ─── 7. Neu starten, bei Fehler zurückrollen ───────────────────────────────
+if compose up -d --no-build --wait --wait-timeout 180; then
+  docker image prune -f >/dev/null
+  write_status updated "Aktualisiert: ${changed[*]:-compose.yml} ($VERSION)"
+  exit 0
+fi
+
+log "Healthcheck fehlgeschlagen – Rollback"
+for s in "${SERVICES[@]}"; do
+  img=$(service_image "$s")
+  [ -n "${before[$s]}" ] && docker tag "${img%:*}:rollback" "$img"
+done
+[ -f "$APP_DIR/compose.yml.bak" ] && [ "$compose_changed" = 1 ] && cp "$APP_DIR/compose.yml.bak" "$APP_DIR/compose.yml"
+if compose up -d --no-build --wait --wait-timeout 180; then
+  write_status rolled-back "Neue Version startete nicht – vorherige Version wiederhergestellt"
+else
+  write_status failed "Rollback fehlgeschlagen – bitte manuell prüfen (docker compose ps)"
+fi
+exit 1

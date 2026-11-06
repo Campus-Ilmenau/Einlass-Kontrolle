@@ -21,22 +21,24 @@ Backups sind geregelt.
 - [ ] Versionsnummer in der App bzw. im Admin-Bereich sichtbar
 
 ## Aufgabe 7.3 – Auto-Update auf dem Pi (pull-basiert)
-- [ ] Compose nutzt Tag `stable` (bzw. gepinnte Version per `.env`)
+- [x] Compose nutzt `EINLASS_VERSION` aus `.env` (vorerst `main`, später `stable` bzw. gepinnte Version)
 - [ ] `infra/pi/update.sh`:
-  - [ ] Internet-Check (GHCR erreichbar)
-  - [ ] Abbruch, wenn eine Veranstaltung aktiv ist (`/system/maintenance-allowed`)
-  - [ ] NTP-Sync + `hwclock -w`
-  - [ ] `docker compose pull`. Bei neuen Images: DB-Backup → `up -d` → Healthcheck
-  - [ ] Rollback auf die vorherigen Image-Digests, wenn der Healthcheck fehlschlägt
-  - [ ] Alte Images aufräumen, Status-File schreiben (Version, Zeitpunkt, Ergebnis)
-- [ ] systemd-Service `einlass-update` + Timer (alle 30 min) + NetworkManager-Dispatcher-Hook (`eth0 up`)
-- [ ] Lock-Datei gegen parallele Läufe
+  - [x] Internet-Check (GHCR erreichbar)
+  - [x] Abbruch, wenn eine Veranstaltung aktiv ist (über `/api/system/display`)
+  - [x] NTP-Sync + `hwclock -w`
+  - [x] `docker compose pull`. Bei neuen Images: DB-Backup → `up -d` → Healthcheck
+  - [x] Rollback auf die vorherigen Images, wenn der Healthcheck fehlschlägt (noch nicht live getestet)
+  - [x] Alte Images aufräumen, Status-File schreiben (Version, Zeitpunkt, Ergebnis)
+- [x] systemd-Service `einlass-update` + Timer (alle 15 min) + NetworkManager-Dispatcher-Hook (`eth0 up`)
+- [x] Lock-Datei gegen parallele Läufe
 - [ ] Anzeige im Admin-Bereich: Version, letztes Update, letzter NTP-Sync (`/admin/system/info`)
 - [ ] Test: Pi offline → Release erstellen → Ethernet einstecken → Update läuft automatisch
+- [x] Test: neues Image → Backup → Neustart; laufende Veranstaltung → kein Update
 - [ ] Offline-Fallback dokumentieren: `docker save` auf dem Laptop → USB → `docker load`
 
 ## Aufgabe 7.4 – Backup & Robustheit
-- [ ] DB-Backup-Skript (`pg_dump` auf USB-Stick)
+- [x] DB-Backup vor jedem Update (`pg_dump` nach `/var/lib/einlass/backups`)
+- [ ] Backup auf USB-Stick
 - [ ] Restore testen
 - [ ] Stromausfall-Test: Pi hart ausschalten → bootet sauber, DB konsistent, Uhrzeit korrekt
 - [ ] Aufbewahrungs-Job im Betrieb verifizieren

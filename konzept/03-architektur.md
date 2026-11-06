@@ -68,7 +68,7 @@ Der Pi fragt selbst nach, sobald er Internet hat.
 ### Einspielen (auf dem Pi): Auto-Update-Dienst
 - Ein **systemd-Service** (`einlass-update`) wird ausgelöst:
   - beim Boot und wenn eine Netzwerkverbindung hochkommt (NetworkManager-Dispatcher auf `eth0 up`)
-  - zusätzlich per systemd-Timer (z. B. alle 30 min), solange er online ist
+  - zusätzlich per systemd-Timer (alle 15 min), solange er online ist
 - Ablauf von `infra/pi/update.sh`:
   1. Internet erreichbar? (z. B. `ghcr.io` auflösen und erreichen) Wenn nicht → Ende
   2. **Ist gerade eine Veranstaltung aktiv?** Dann **kein Update** (API fragen) → Ende
