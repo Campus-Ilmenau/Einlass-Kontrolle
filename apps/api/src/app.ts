@@ -11,10 +11,13 @@ import {
 import type { DataSource } from 'typeorm';
 import { adminRoutes } from './admin/index.js';
 import { authRoutes } from './auth/routes.js';
+import { checkRoutes } from './checks/routes.js';
 import { SESSION_COOKIE } from './auth/session.js';
 import type { Config } from './config.js';
 import type { HostClient } from './host/hostd-client.js';
 import { ApiError, fromDatabaseError } from './http/errors.js';
+import { scheduleRetention } from './jobs/retention.js';
+import { displayRoutes } from './routes/display.js';
 import { TimeSyncService } from './time/time-sync-service.js';
 
 export interface AppDeps {
@@ -25,6 +28,8 @@ export interface AppDeps {
   now?: () => Date;
   /** Fertiger Logger (z. B. pino aus main.ts); sonst wird einer erzeugt */
   loggerInstance?: FastifyBaseLogger;
+  /** Hintergrund-Jobs (Aufräumen) starten – in Tests aus */
+  jobs?: boolean;
 }
 
 declare module 'fastify' {
@@ -98,9 +103,13 @@ export async function buildApp(deps: AppDeps) {
       }));
       await api.register(authRoutes, { prefix: '/auth' });
       await api.register(adminRoutes, { prefix: '/admin' });
+      await api.register(checkRoutes, { prefix: '/checks' });
+      await api.register(displayRoutes, { prefix: '/system' });
     },
     { prefix: '/api' },
   );
+
+  if (deps.jobs !== false) scheduleRetention(app);
 
   return app;
 }

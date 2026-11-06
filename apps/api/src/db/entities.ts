@@ -203,6 +203,24 @@ export const TimeSyncLogSchema = new EntitySchema<TimeSyncLogEntity>({
   },
 });
 
+// ─── Gespeicherte Statistik ────────────────────────────────────────────────
+
+export interface EventStatsSnapshotEntity {
+  eventId: string;
+  stats: unknown;
+  createdAt: Date;
+}
+
+export const EventStatsSnapshotSchema = new EntitySchema<EventStatsSnapshotEntity>({
+  name: 'EventStatsSnapshot',
+  tableName: 'event_stats',
+  columns: {
+    eventId: { type: 'uuid', name: 'event_id', primary: true },
+    stats: { type: 'jsonb' },
+    createdAt: timestamps.createdAt,
+  },
+});
+
 export const ALL_ENTITIES = [
   UserSchema,
   FreeListSchema,
@@ -212,4 +230,5 @@ export const ALL_ENTITIES = [
   CheckLogSchema,
   SettingSchema,
   TimeSyncLogSchema,
+  EventStatsSnapshotSchema,
 ];

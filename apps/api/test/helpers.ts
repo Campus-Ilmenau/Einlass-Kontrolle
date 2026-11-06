@@ -113,6 +113,7 @@ export async function createTestApp(dataSource: DataSource, overrides: Partial<C
     dataSource,
     host,
     now: clock.now,
+    jobs: false,
   });
   await app.ready();
   return { app, clock, host };
