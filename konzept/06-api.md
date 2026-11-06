@@ -17,8 +17,8 @@ Die App zeigt bei `adjusted` kurz „Uhrzeit des Systems wurde korrigiert“, be
 ## Kontrolle (nur CONTROLLER)
 | Methode | Pfad | Beschreibung |
 |---|---|---|
-| GET | `/checks/context` | aktive Veranstaltung (Name, Ende, Listen) oder `null` → UI sperrt den Scan |
-| POST | `/checks` | `{ matrikelnummer, birthDate }` → `{ isFree, matchedLists[], age, ageGroup, alreadySeenAt? }`. `409 NO_ACTIVE_EVENT`, wenn keine Veranstaltung aktiv ist |
+| GET | `/checks/context` | `{ event, serverTime }`: aktive Veranstaltung (Name, Start, Ende, Listen) oder `null` → UI sperrt den Scan |
+| POST | `/checks` | `{ matrikelnummer, birthDate (YYYY-MM-DD) }` → `{ isFree, matchedLists[], age, ageGroup, alreadySeenAt }`. `alreadySeenAt` = Zeitpunkt des **ersten** Scans dieser Person bei dieser Veranstaltung. Fehler: `409 NO_ACTIVE_EVENT`, `400 INVALID_BIRTH_DATE` |
 
 ## Admin: Kontrolleur:innen
 | Methode | Pfad | Beschreibung |
@@ -50,23 +50,28 @@ Die App zeigt bei `adjusted` kurz „Uhrzeit des Systems wurde korrigiert“, be
 | PATCH | `/admin/events/:id` | ändern (auch Listen-Zuordnung) |
 | POST | `/admin/events/:id/end` | laufende Veranstaltung sofort beenden |
 | DELETE | `/admin/events/:id` | löschen |
-| GET | `/admin/events/:id/stats` | Zähler: gesamt, frei je Liste, U16, U18, je Kontrolleur:in, Doppel-Scans |
+| GET | `/admin/events/:id/stats` | `scans`, `persons`, `repeatedScans`, `freePersons`, `perList[]`, `ageGroups {U16,U18,ADULT}`, `perUser[]`, `archived` (Protokolle schon gelöscht → gesicherte Werte) |
 
 ## Admin: Einstellungen & System
 | Methode | Pfad | Beschreibung |
 |---|---|---|
 | GET/PATCH | `/admin/settings` | z. B. `checkLogRetentionDays` |
-| POST | `/admin/system/time` | `{ time }`, setzt Systemzeit und RTC (manuell, ohne Schutzregeln außer Bestätigung) |
+| GET | `/admin/system/time` | Serverzeit, hostd erreichbar, NTP, RTC, letzte bekannte Zeit |
+| POST | `/admin/system/time` | `{ time }`, setzt Systemzeit und RTC (manuell, ohne Schutzregeln). `503 HOST_UNAVAILABLE` ohne hostd |
 | GET | `/admin/system/time-log` | Zeit-Protokoll: Zeitpunkt, Quelle (Login/Me/Admin/NTP), User, alte → neue Zeit, Ergebnis |
 | GET | `/admin/system/info` | installierte Version, letztes Update (Zeit, Erfolg), letzter NTP-Sync, Internet ja/nein |
-| POST | `/admin/system/shutdown` | Pi sauber herunterfahren |
+| POST | `/admin/system/shutdown` | Pi sauber herunterfahren (`202`) |
+| POST | `/admin/system/reboot` | Pi neu starten (`202`) |
 | GET | `/system/maintenance-allowed` | nur localhost: `false` während einer aktiven Veranstaltung (wird vom Update-Skript abgefragt) |
-| GET | `/system/display` | ohne Login, nur von localhost: aktive Veranstaltung, Anzahl Scans, Uhrzeit, WLAN-Daten für den QR-Code |
+| GET | `/system/display` | ohne Login: Serverzeit, aktive Veranstaltung (Name, Ende), Anzahl Personen. Bewusst ohne personenbezogene Daten (WLAN-QR erzeugt der Pi selbst) |
 
 ## Prüflogik `POST /checks`
 1. Aktive Veranstaltung ermitteln, sonst `409 NO_ACTIVE_EVENT`
 2. Validieren: Matrikelnummer `^\d{5}$`, Geburtsdatum gültig, nicht in der Zukunft, plausibel (z. B. 1930 bis heute)
 3. Suche in `FreeListEntry` über die Listen der Veranstaltung → `matchedLists`
 4. Alter in vollen Jahren am heutigen Tag (Europe/Berlin), `ageGroup`: `<16` → `U16`, `<18` → `U18`, sonst `ADULT`
-5. `matrikelHash` berechnen, frühere `CheckLog` dieser Veranstaltung suchen → `alreadySeenAt`
-6. `CheckLog` schreiben, Zähler erhöhen
+5. `matrikelHash` = HMAC-SHA256(Geheimnis der Veranstaltung, Matrikelnummer), ersten `CheckLog` dieser Veranstaltung suchen → `alreadySeenAt`
+6. `CheckLog` schreiben (ohne Matrikelnummer und Geburtsdatum)
+
+## Aufräum-Job
+Stündlich (und kurz nach dem Start): Für beendete Veranstaltungen mit Protokollen älter als `checkLogRetentionDays` wird die Statistik in `event_stats` gesichert und das Protokoll gelöscht. Laufende Veranstaltungen werden nie angefasst.

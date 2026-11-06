@@ -16,7 +16,7 @@ Usern, Listen und Veranstaltungen sowie Prüf-Endpunkt. Getestet und als arm64-I
 - [x] Entity `FreeList`, `FreeListEntry` (Unique-Index auf listId + matrikelnummer, Index auf matrikelnummer)
 - [x] Entity `Event` (startsAt, endsAt, hashSalt) + n:m `EventFreeList`, Überschneidung per Exclusion-Constraint verhindert
 - [x] Entity `CheckLog`
-- [ ] Zähler bzw. `EventStats`
+- [x] Zähler bzw. `EventStats` (live aus `check_logs`, gesicherte Zusammenfassung in `event_stats`)
 - [x] Entity `Setting` (checkLogRetentionDays)
 - [x] Migrationen statt `synchronize`, Ausführung beim Start
 - [x] Seed: initialer Admin aus Env-Variablen
@@ -41,7 +41,7 @@ Usern, Listen und Veranstaltungen sowie Prüf-Endpunkt. Getestet und als arm64-I
 - [x] `clockTolerance` bei der JWT-Prüfung (5 min)
 - [x] Test: Pi-Uhr 2 Tage zurück → Login → Token ist nach der Korrektur gültig
 - [x] Entity `TimeSyncLog`
-- [ ] `GET /admin/system/time-log`
+- [x] `GET /admin/system/time-log`
 - [x] Unit-Tests für alle Regeln (Sprung vor/zurück, zweiter Client, aktive Veranstaltung, Grenzwerte)
 
 ## Aufgabe 3.4 – Admin: Kontrolleur:innen
@@ -60,26 +60,26 @@ Usern, Listen und Veranstaltungen sowie Prüf-Endpunkt. Getestet und als arm64-I
 - [x] Validierung: `endsAt > startsAt`, keine Überschneidung mit anderen Veranstaltungen
 - [x] `hashSalt` beim Anlegen zufällig erzeugen
 - [x] Hilfsfunktion „aktive Veranstaltung jetzt“ (`TimeSyncService.isEventActive`)
-- [ ] `GET /admin/events/:id/stats`
+- [x] `GET /admin/events/:id/stats`
 
 ## Aufgabe 3.7 – Prüf-Endpunkt
-- [ ] `GET /checks/context` (aktive Veranstaltung oder `null`)
-- [ ] `POST /checks`: keine aktive Veranstaltung → `409`
-- [ ] Abgleich gegen die Listen der Veranstaltung
-- [ ] Altersberechnung U16/U18/ADULT (Europe/Berlin, Geburtstag heute, 29.02.)
-- [ ] HMAC der Matrikelnummer, Doppel-Scan-Erkennung (`alreadySeenAt`)
-- [ ] CheckLog schreiben, Zähler erhöhen
+- [x] `GET /checks/context` (aktive Veranstaltung oder `null`)
+- [x] `POST /checks`: keine aktive Veranstaltung → `409`
+- [x] Abgleich gegen die Listen der Veranstaltung
+- [x] Altersberechnung U16/U18/ADULT (Europe/Berlin, Geburtstag heute, 29.02.)
+- [x] HMAC der Matrikelnummer, Doppel-Scan-Erkennung (`alreadySeenAt`)
+- [x] CheckLog schreiben
 
 ## Aufgabe 3.8 – Einstellungen, System & Jobs
 - [x] `GET/PATCH /admin/settings` (Aufbewahrungsfrist)
-- [ ] Aufbewahrungs-Job: CheckLogs älter als die Frist löschen, Zähler bleiben
-- [ ] `POST /admin/system/time` → Host-Mechanismus aus M2
-- [ ] `GET /system/display` (nur localhost)
+- [x] Aufbewahrungs-Job: CheckLogs älter als die Frist löschen, Zähler bleiben
+- [x] `POST /admin/system/time` → Host-Mechanismus aus M2, außerdem `shutdown`/`reboot`
+- [x] `GET /system/display` (öffentlich, ohne personenbezogene Daten)
 
 ## Aufgabe 3.9 – Tests & Build
 - [x] Unit-Tests: Altersberechnung (Randfälle: Geburtstag heute, 29.02., Zeitzone/Sommerzeit), Matrikel-Listen-Parser
 - [x] Unit-Tests: Sperrlogik, Veranstaltungs-Überschneidung, Import-Parser (CSV/XLSX)
-- [ ] Integrationstests mit Test-Postgres: Login, Rollen, Checks, Doppel-Scan
+- [x] Integrationstests mit Test-Postgres: Login, Rollen, Checks, Doppel-Scan
 - [ ] Dockerfile (multi-stage, `linux/arm64`)
 - [ ] OpenAPI-Doku (`@fastify/swagger`)
 

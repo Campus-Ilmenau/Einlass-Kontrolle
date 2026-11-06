@@ -245,3 +245,78 @@ export const ApiErrorSchema = z.object({
   message: z.string(),
 });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
+
+// ─── Kontrolle: Kontext ────────────────────────────────────────────────────
+
+export const ActiveEventSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  startsAt: InstantSchema,
+  endsAt: InstantSchema,
+  lists: z.array(z.object({ id: z.uuid(), name: z.string() })),
+});
+export type ActiveEvent = z.infer<typeof ActiveEventSchema>;
+
+export const CheckContextSchema = z.object({
+  /** Aktive Veranstaltung; `null` → Scannen ist gesperrt */
+  event: ActiveEventSchema.nullable(),
+  serverTime: InstantSchema,
+});
+export type CheckContext = z.infer<typeof CheckContextSchema>;
+
+// ─── Statistik ─────────────────────────────────────────────────────────────
+
+export const EventStatsSchema = z.object({
+  eventId: z.uuid(),
+  /** Alle Scans inkl. Doppel-Scans */
+  scans: z.number().int(),
+  /** Verschiedene Personen (über den HMAC der Matrikelnummer) */
+  persons: z.number().int(),
+  /** Scans derselben Person nach dem ersten */
+  repeatedScans: z.number().int(),
+  /** Personen mit freiem Eintritt */
+  freePersons: z.number().int(),
+  perList: z.array(z.object({ id: z.uuid(), name: z.string(), persons: z.number().int() })),
+  /** Personen je Altersstufe */
+  ageGroups: z.object({ U16: z.number().int(), U18: z.number().int(), ADULT: z.number().int() }),
+  perUser: z.array(z.object({ name: z.string(), scans: z.number().int() })),
+  /** true: Scan-Protokolle sind bereits gelöscht, Werte stammen aus der gespeicherten Zusammenfassung */
+  archived: z.boolean(),
+});
+export type EventStats = z.infer<typeof EventStatsSchema>;
+
+// ─── System ────────────────────────────────────────────────────────────────
+
+export const SystemTimeSchema = z.object({
+  serverTime: InstantSchema,
+  hostd: z.boolean(),
+  ntpSynchronized: z.boolean().nullable(),
+  rtcPresent: z.boolean().nullable(),
+  rtcTime: z.string().nullable(),
+  lastKnownTime: InstantSchema.nullable(),
+});
+export type SystemTime = z.infer<typeof SystemTimeSchema>;
+
+export const SetTimeRequestSchema = z.object({ time: InstantSchema });
+export type SetTimeRequest = z.infer<typeof SetTimeRequestSchema>;
+
+export const TimeSyncLogEntrySchema = z.object({
+  id: z.uuid(),
+  source: z.enum(['LOGIN', 'ME', 'ADMIN', 'NTP']),
+  userName: z.string().nullable(),
+  serverTimeBefore: InstantSchema,
+  clientTime: InstantSchema,
+  driftSeconds: z.number(),
+  action: z.enum(['adjusted', 'rejected', 'warning']),
+  reason: z.string().nullable(),
+  createdAt: InstantSchema,
+});
+export type TimeSyncLogEntry = z.infer<typeof TimeSyncLogEntrySchema>;
+
+/** Öffentlicher Status für das Display am Pi (keine personenbezogenen Daten). */
+export const DisplayStatusSchema = z.object({
+  serverTime: InstantSchema,
+  event: z.object({ name: z.string(), endsAt: InstantSchema }).nullable(),
+  persons: z.number().int(),
+});
+export type DisplayStatus = z.infer<typeof DisplayStatusSchema>;

@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import {
   type Event,
   EventRequestSchema,
+  EventStatsSchema,
   EventSchema as EventDtoSchema,
   type EventStatus,
   UpdateEventRequestSchema,
@@ -16,6 +17,7 @@ import {
   FreeListSchema,
 } from '../db/entities.js';
 import { badRequest, conflict, notFound } from '../http/errors.js';
+import { getEventStats } from '../stats/event-stats.js';
 
 const IdParams = z.object({ id: z.uuid() });
 
@@ -142,6 +144,15 @@ export const adminEventRoutes: FastifyPluginAsyncZod = async (app) => {
       await ds().getRepository(EventSchema).update(event.id, { endsAt: now });
       request.log.info({ event: event.name }, 'Veranstaltung vorzeitig beendet');
       return loadDto(event.id);
+    },
+  );
+
+  app.get(
+    '/:id/stats',
+    { schema: { params: IdParams, response: { 200: EventStatsSchema } } },
+    async (request) => {
+      await load(request.params.id);
+      return getEventStats(ds(), request.params.id);
     },
   );
 

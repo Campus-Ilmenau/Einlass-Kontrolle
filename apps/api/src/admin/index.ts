@@ -4,6 +4,7 @@ import { authenticate, requireRole } from '../auth/session.js';
 import { adminEventRoutes } from './events.js';
 import { adminListRoutes, IMPORT_MAX_BYTES } from './lists.js';
 import { adminSettingsRoutes } from './settings.js';
+import { adminSystemRoutes } from './system.js';
 import { adminUserRoutes } from './users.js';
 
 /** Alle Admin-Endpunkte unter /api/admin – nur für angemeldete Admins. */
@@ -17,4 +18,5 @@ export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
   await app.register(adminListRoutes, { prefix: '/lists' });
   await app.register(adminEventRoutes, { prefix: '/events' });
   await app.register(adminSettingsRoutes, { prefix: '/settings' });
+  await app.register(adminSystemRoutes, { prefix: '/system' });
 };

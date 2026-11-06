@@ -1,8 +1,9 @@
 import { DataSource } from 'typeorm';
 import { ALL_ENTITIES } from './entities.js';
 import { InitialSchema1762459200000 } from './migrations/1762459200000-InitialSchema.js';
+import { EventStatsSnapshots1762545600000 } from './migrations/1762545600000-EventStatsSnapshots.js';
 
-export const MIGRATIONS = [InitialSchema1762459200000];
+export const MIGRATIONS = [InitialSchema1762459200000, EventStatsSnapshots1762545600000];
 
 export function createDataSource(url: string): DataSource {
   return new DataSource({
