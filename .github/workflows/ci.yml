@@ -28,4 +28,4 @@ jobs:
       - name: Tests
         run: pnpm test
       - name: Shell-Skripte prüfen
-        run: shellcheck -x infra/pi/*.sh infra/pi/lib/*.sh
+        run: shellcheck -x infra/pi/*.sh infra/pi/lib/*.sh infra/pi/files/einlass-kiosk infra/pi/files/einlass-display-render
