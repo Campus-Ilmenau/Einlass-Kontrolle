@@ -1,7 +1,8 @@
 # 08 – Ausweis-Scan (Thoska+)
 
-Das war der **technisch riskanteste Teil**. Der Prototyp (M1) hat ihn bestätigt: Auf dem iPad wurden Matrikelnummer
-und Geburtsdatum zuverlässig und in **unter 3 Sekunden** stabil erkannt ([Ergebnis](../planung/M1-machbarkeit-prototyp.md#ergebnis-06112026)).
+Das ist der **technisch riskanteste Teil**. Der Prototyp (M1) zeigt auf dem iPad: Die Matrikelnummer wird praktisch
+in jedem Bild erkannt, das Geburtsdatum nur in einem Teil der Bilder. Die Stabilisierung zählt deshalb jedes Feld
+einzeln ([Ergebnis](../planung/M1-machbarkeit-prototyp.md#ergebnis-06112026)).
 
 ## Ausgangslage
 - Unterstützt wird **nur die Thoska+**
@@ -21,7 +22,10 @@ und Geburtsdatum zuverlässig und in **unter 3 Sekunden** stabil erkannt ([Ergeb
 - **Plausibilisierung:**
   - Matrikelnummer `^\d{5}$`
   - Datum gültig und plausibel
-  - Ein Wert gilt erst als erkannt, wenn er in **mehreren aufeinanderfolgenden Frames** gleich gelesen wurde
+  - Jedes Feld wird **einzeln** in einem gleitenden Fenster (15 Frames) abgestimmt: Matrikelnummer 3× gleich,
+    Datum 2× gleich. Die Treffer müssen nicht direkt hintereinander liegen
+  - Datums-Regex tolerant gegenüber fehlenden Punkten (`27071994`, `27 07 1994`) mit anschließender Plausibilitätsprüfung
+  - Vorverarbeitung im Wechsel (S/W-Schwelle und Graustufen)
 - Der erkannte Wert wird angezeigt und kann vor dem Absenden korrigiert werden
 - *(Alternative, falls Tesseract zu langsam oder ungenau ist)*: Text-Detection-API (nur Chrome/Android, experimentell) oder ein schlankeres, eigenes Ziffern-Modell
 

@@ -7,7 +7,8 @@ Status: ☐ offen · ☑ entschieden
 - ☑ Format der Matrikelnummer → **immer 5-stellig, numerisch** (`^\d{5}$`)
 - ☑ Unterstützte Ausweise → **nur Thoska** (Gäste ohne Thoska werden nicht über das System geprüft)
 - ☑ Format des Geburtsdatums auf der Karte → **TT.MM.JJJJ**
-- ☑ OCR-Machbarkeit → **bestätigt** (M1: zuverlässig, < 3 s auf iPad)
+- ☑ OCR-Machbarkeit → **grundsätzlich bestätigt** (M1, iPad): Matrikel sofort, Datum ist der Engpass
+- ☐ Ziel < 3 s bis zum stabilen Ergebnis → Nachtest mit Stabilisierung v2
 
 ## Hardware / Netzwerk
 - ☑ Pi-Modell → **Raspberry Pi 4**

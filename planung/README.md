@@ -10,7 +10,7 @@ Struktur pro Milestone: **Ziel** → **Aufgaben mit Unteraufgaben** → **Defini
 | # | Milestone | Ziel | Abhängig von | Status |
 |---|---|---|---|---|
 | M0 | [Klärung & Projekt-Setup](M0-klaerung-und-setup.md) | Restfragen klären, Hardware, Repo-Struktur | – | ☐ |
-| M1 | [Machbarkeits-Prototyp](M1-machbarkeit-prototyp.md) | Größte Risiken früh prüfen: Kamera über HTTPS im Pi-WLAN, OCR der Thoska | M0 | ☑ (iPad) |
+| M1 | [Machbarkeits-Prototyp](M1-machbarkeit-prototyp.md) | Größte Risiken früh prüfen: Kamera über HTTPS im Pi-WLAN, OCR der Thoska | M0 | ◐ (iPad, Nachtest Datum) |
 | M2 | [Pi-Grundsystem](M2-pi-grundsystem.md) | Pi bootet, spannt WLAN auf, Docker läuft, Uhrzeit stimmt | M0 | ☐ |
 | M3 | [Backend / API](M3-backend-api.md) | Datenmodell, Auth, Admin- und Check-Endpunkte | M0 | ☐ |
 | M4 | [Web-App: Login & Admin](M4-webapp-admin.md) | Admin verwaltet Kontrolleur:innen, Freilisten, Veranstaltungen | M3 | ☐ |

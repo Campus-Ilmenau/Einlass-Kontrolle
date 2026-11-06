@@ -19,7 +19,7 @@ Wegwerf-Code ist hier ausdrücklich erlaubt.
 
 ## Aufgabe 1.2 – OCR-Prototyp
 - [ ] Testset: 5–10 Fotos von Thoskas (unterschiedliches Licht), Einwilligung der Besitzer:innen
-- [ ] ~~Layout vermessen (ROI)~~: nicht nötig, die Erkennung auf dem ganzen Kartenrahmen reicht
+- [ ] Layout vermessen (ROI): für die Matrikelnummer nicht nötig, für das Datum ggf. sinnvoll (siehe Ergebnis)
 - [x] Tesseract.js mit Ziffern-Whitelist auf den Fotos testen, Vorverarbeitung (Graustufen, Schwellwert) ausprobieren
 - [x] Live-Stream-Test im Web Worker: Geschwindigkeit und Zuverlässigkeit auf einem Mittelklasse-Smartphone
 - [x] Stabilisierung über mehrere Frames testen (3 gleiche Treffer)
@@ -37,11 +37,15 @@ Wegwerf-Code ist hier ausdrücklich erlaubt.
 |---|---|
 | Kamera über self-signed HTTPS im Offline-WLAN | ✅ iPad (Safari) |
 | Datumsformat auf der Thoska | `TT.MM.JJJJ` |
-| Erkennung Matrikelnummer + Geburtsdatum | ✅ zuverlässig |
-| Live-Erkennung bis „stabil“ (3 gleiche Treffer) | ✅ unter 3 s |
+| Erkennung Matrikelnummer | ✅ in fast jedem Frame (~200 ms pro Frame, OCR-Laden 1,6 s) |
+| Erkennung Geburtsdatum | ⚠️ nur in ~10 von 53 Frames, Datum ist der Engpass |
+| Live-Erkennung bis „stabil“ (v1: 3× dasselbe Paar hintereinander) | ⚠️ 11,1 s / 53 Frames, 2. Lauf ohne Ergebnis |
+| Live-Erkennung v2 (Felder getrennt, Fenster 15: Matrikel 3×, Datum 2×; toleranter Datums-Regex; S/W und Grau im Wechsel) | ⏳ Nachtest offen (mit Log v1 rechnerisch ~5 s) |
 | Vorgehen | Tesseract.js 7 (LSTM, `eng`), Ziffern-Whitelist, PSM 11, Graustufen + Otsu-Schwelle, Zuschnitt auf Kartenrahmen |
 
 **Entscheidung:** OCR mit Tesseract.js im Browser und self-signed HTTPS werden für M5 übernommen.
+Das Ziel < 3 s ist nach dem Nachtest von v2 zu bewerten. Weitere Hebel wären ein gezielter Zuschnitt auf die
+Datumszeile (ROI) und eine Vergrößerung dieses Bereichs.
 Prototyp: [`poc/m1-kamera-ocr/`](../poc/m1-kamera-ocr/README.md).
 
 **Noch offen (nicht blockierend):** iPhone, Android (Chrome), Tablet-Vielfalt, PWA-Installierbarkeit,
