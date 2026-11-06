@@ -5,7 +5,7 @@
 | Teil | Entscheidung |
 |---|---|
 | Rechner | **Raspberry Pi 4** (≥ 2 GB RAM, besser 4 GB, wegen Postgres, Node und Chromium-Kiosk) |
-| OS | Raspberry Pi OS Lite (Bookworm, 64 Bit), kein Desktop |
+| OS | Raspberry Pi OS Lite (Debian 13 „Trixie“, 64 Bit), kein Desktop |
 | Display | **Offizielles Raspberry Pi 5"-Display, Hochformat** (DSI) |
 | Uhr | **RTC-Modul DS3231** (I²C, mit Knopfzelle) |
 | Speicher | hochwertige SD-Karte (High Endurance) oder USB-SSD, wegen möglicher Stromausfälle |

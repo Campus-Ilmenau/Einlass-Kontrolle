@@ -5,7 +5,7 @@
 Ohne HTTPS gibt es keine Kamera (siehe [08](08-ausweis-scan.md)).
 
 **Entscheidung: self-signed Zertifikat**
-- Wird beim Setup auf dem Pi erzeugt (z. B. 10 Jahre gültig, SAN: `einlass.lan`, `10.42.0.1`)
+- Wird beim Setup auf dem Pi erzeugt (825 Tage gültig, weil Apple für TLS-Server-Zertifikate keine längere Laufzeit akzeptiert; SAN: `einlass.lan`, `10.42.0.1`)
 - Pro Gerät muss die Browser-Warnung einmal bestätigt werden. Das steht in der Kurzanleitung
 - Risiken, die in M1 getestet werden:
   - iOS Safari: Wird die Kamera nach dem Bestätigen freigegeben? Muss die Warnung nach jedem Neustart erneut bestätigt werden?
@@ -13,7 +13,7 @@ Ohne HTTPS gibt es keine Kamera (siehe [08](08-ausweis-scan.md)).
 - **Uhrzeit und Zertifikat:** Die Gültigkeit prüft der **Client mit seiner eigenen Uhr**, die Uhr des Pi
   spielt im Betrieb keine Rolle. Kritisch ist nur das **Erzeugen**: `notBefore` wird mit der Pi-Uhr gestempelt.
   Deshalb wird das Zertifikat nur beim Setup bei synchronisierter Zeit (NTP) erzeugt,
-  `notBefore` um 1 Tag zurückdatiert, und es bekommt eine lange Laufzeit (10 Jahre). Es wird im Betrieb nie automatisch neu erzeugt
+  `notBefore` um 1 Tag zurückdatiert. Erneuert wird es nur in der Vorbereitungsphase (Setup bzw. Auto-Update mit Internet und NTP), wenn es in < 90 Tagen abläuft, nie am Abend. Danach muss die Warnung pro Gerät einmal neu bestätigt werden
 - **Plan B:** eigene CA. Das Root-Zertifikat wird einmal auf den Club-Geräten installiert, dann gibt es keine Warnung mehr
 
 ## Authentifizierung
