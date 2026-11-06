@@ -4,20 +4,20 @@
 Freilisten, Veranstaltungen und Einstellungen verwalten.
 
 ## Aufgabe 4.1 – Grundgerüst
-- [ ] `apps/web`: Vite + React + TypeScript
-- [ ] Ant Design mit Dark-Theme, deutsche Locale (`de_DE`, dayjs)
-- [ ] React Router, geschützte Routen nach Rolle
-- [ ] API-Client + TanStack Query, Typen und Schemas aus `packages/shared`, 401 → Login
-- [ ] Dev-Proxy `/api` → lokale API
-- [ ] PWA-Manifest und Icons
-- [ ] Mobile-first Layout (Admin-Navigation als Tabs oder Drawer)
+- [x] `apps/web`: Vite + React + TypeScript
+- [x] Ant Design mit Dark-Theme, deutsche Locale (`de_DE`, dayjs)
+- [x] React Router, geschützte Routen nach Rolle
+- [x] API-Client + TanStack Query, Typen aus `packages/shared`, 401 → Login
+- [x] Dev-Proxy `/api` → lokale API
+- [x] PWA-Manifest und Icon
+- [x] Mobile-first Layout (Admin-Navigation als Tab-Leiste unten)
 
 ## Aufgabe 4.2 – Login
-- [ ] Login-Formular
-- [ ] `clientTime` beim Login mitsenden, `X-Client-Time` bei `GET /auth/me` (App-Start, `visibilitychange` → sichtbar)
-- [ ] `timeSync` auswerten: Hinweis „Systemzeit korrigiert“ bzw. Warnung „Deine Geräteuhr weicht ab“
-- [ ] Meldungen: falsches Passwort, gesperrt bis HH:MM, deaktiviert, abgelaufen
-- [ ] Weiterleitung je nach Rolle, Logout
+- [x] Login-Formular
+- [x] `clientTime` beim Login mitsenden, `X-Client-Time` bei `GET /auth/me` (App-Start und Rückkehr in den Vordergrund)
+- [x] `timeSync` auswerten: Hinweis „Systemzeit korrigiert“ bzw. Warnung „Geräteuhr weicht ab“
+- [x] Meldungen: falsches Passwort (mit Restversuchen), gesperrt bis HH:MM, deaktiviert, abgelaufen
+- [x] Weiterleitung je nach Rolle, Logout
 
 ## Aufgabe 4.3 – Admin: Veranstaltungen
 - [ ] Liste: geplant / aktiv / vergangen

@@ -8,6 +8,15 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+    # Nur bei Code-Änderungen neue Images (Doku-Änderungen lösen keinen Neustart auf dem Pi aus)
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'infra/docker/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/docker.yml'
   pull_request:
     paths:
       - 'apps/**'

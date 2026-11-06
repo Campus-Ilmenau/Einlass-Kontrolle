@@ -2,11 +2,11 @@
 
 Die Anwendung läuft auf dem Pi als Docker Compose-Projekt `einlass` mit drei Containern:
 
-| Container | Image                                  | Aufgabe                                                                     |
-| --------- | -------------------------------------- | --------------------------------------------------------------------------- |
-| `proxy`   | `ghcr.io/campus-ilmenau/einlass-proxy` | nginx: HTTPS (self-signed), `/api` → API, `/` → Web-App, `/poc/` → Prototyp |
-| `api`     | `ghcr.io/campus-ilmenau/einlass-api`   | Fastify-API (Port 3000, nur intern)                                         |
-| `db`      | `postgres:18-alpine`                   | Datenbank (Volume `einlass_dbdata`)                                         |
+| Container | Image                                  | Aufgabe                                                                                 |
+| --------- | -------------------------------------- | --------------------------------------------------------------------------------------- |
+| `proxy`   | `ghcr.io/campus-ilmenau/einlass-proxy` | nginx mit Web-App: HTTPS (self-signed), `/api` → API, `/` → Web-App, `/poc/` → Prototyp |
+| `api`     | `ghcr.io/campus-ilmenau/einlass-api`   | Fastify-API (Port 3000, nur intern)                                                     |
+| `db`      | `postgres:18-alpine`                   | Datenbank (Volume `einlass_dbdata`)                                                     |
 
 ```
 WLAN-Client ──HTTPS──▶ proxy :443 ──▶ api :3000 ──▶ db :5432

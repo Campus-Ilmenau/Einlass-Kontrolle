@@ -1,0 +1,14 @@
+{
+  "name": "Einlass-Kontrolle",
+  "short_name": "Einlass",
+  "description": "Einlasskontrolle für die Studi-Clubs der TU Ilmenau",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#111418",
+  "theme_color": "#111418",
+  "lang": "de",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
