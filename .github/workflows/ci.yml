@@ -28,6 +28,6 @@ jobs:
       - name: Tests
         run: pnpm test
       - name: Shell-Skripte prüfen
-        run: shellcheck -x infra/pi/*.sh infra/pi/lib/*.sh infra/pi/files/einlass-kiosk infra/pi/files/einlass-display-render
+        run: shellcheck -x infra/pi/*.sh infra/pi/lib/*.sh infra/pi/files/einlass-kiosk infra/pi/files/einlass-display-render infra/pi/files/einlass-update
       - name: Python-Skripte prüfen
         run: python3 -m py_compile infra/pi/files/einlass-hostd infra/pi/files/make-blank-cursor.py
