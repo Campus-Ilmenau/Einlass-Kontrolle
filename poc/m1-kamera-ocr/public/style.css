@@ -147,6 +147,7 @@ video {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  /* #roi wird relativ zum Rahmen positioniert */
 }
 
 #frame span {
@@ -196,4 +197,18 @@ pre {
   font-size: 0.8rem;
   color: var(--muted);
   margin: 8px 0 0;
+}
+
+#roi {
+  position: absolute;
+  left: 40%;
+  top: 36%;
+  width: 46%;
+  height: 30%;
+  border: 2px dashed rgba(250, 204, 21, 0.9);
+  border-radius: 4px;
+}
+
+#roi.off {
+  display: none;
 }

@@ -9,6 +9,12 @@ const preview = $('#preview');
 const logEl = $('#log');
 
 const MATRIKEL_RE = /(?<!\d)\d{5}(?!\d)/g;
+// Anker aus dem Kartenlayout: "geb. 27.07.1994" und "Matrikel-Nr. 53902"
+const GEB_RE = /geb\W{0,3}(\d{2})[.,\s]?(\d{2})[.,\s]?(\d{4})(?!\d)/i;
+const NR_RE = /Nr\W{0,3}(\d{5})(?!\d)/i;
+// Datenbereich (Zeilen "geb." und "Matrikel-Nr.") relativ zur Karte im Querformat,
+// vermessen an einem Foto der Thoska. Schließt Name, Foto und "Semesterticket gültig bis …" aus.
+const ROI = { x: 0.4, y: 0.36, w: 0.46, h: 0.3 };
 // TT.MM.JJJJ – Punkte werden von der OCR oft verschluckt oder als Komma/Leerzeichen gelesen
 const DATE_RE = /(?<!\d)(\d{2})[.,\s]?(\d{2})[.,\s]?(\d{4})(?!\d)/g;
 // Stabilisierung je Feld innerhalb eines gleitenden Fensters (nicht zwingend hintereinander)
@@ -123,7 +129,7 @@ $('#btn-torch').onclick = async () => {
 };
 
 /** Schneidet den Bereich des Kartenrahmens aus dem Videobild (object-fit: cover berücksichtigt). */
-function grabFrameRegion() {
+function grabFrameRegion(useRoi = $('#opt-roi').checked) {
   const vw = video.videoWidth;
   const vh = video.videoHeight;
   const box = video.getBoundingClientRect();
@@ -133,13 +139,22 @@ function grabFrameRegion() {
   const offY = (vh * scale - box.height) / 2;
   const sx = (fr.left - box.left + offX) / scale;
   const sy = (fr.top - box.top + offY) / scale;
-  const sw = fr.width / scale;
-  const sh = fr.height / scale;
+  let sw = fr.width / scale;
+  let sh = fr.height / scale;
+  let x = sx;
+  let y = sy;
+  if (useRoi) {
+    x += sw * ROI.x;
+    y += sh * ROI.y;
+    sw *= ROI.w;
+    sh *= ROI.h;
+  }
 
   const c = document.createElement('canvas');
   c.width = Math.round(sw);
   c.height = Math.round(sh);
-  c.getContext('2d').drawImage(video, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  c.getContext('2d').drawImage(video, x, y, sw, sh, 0, 0, c.width, c.height);
+  c.dataset.roi = useRoi ? '1' : '';
   return c;
 }
 
@@ -222,10 +237,6 @@ async function getWorker() {
       }
     },
   }).then(async (w) => {
-    await w.setParameters({
-      tessedit_char_whitelist: '0123456789.,',
-      tessedit_pageseg_mode: '11', // sparse text: einzelne Textblöcke irgendwo auf der Karte
-    });
     worker = w;
     const ms = Math.round(performance.now() - t0);
     $('#ocr-status').textContent = `OCR bereit (geladen in ${ms} ms)`;
@@ -235,33 +246,57 @@ async function getWorker() {
   return workerLoading;
 }
 
+function toDate(day, month, year) {
+  const [d, m, y] = [Number(day), Number(month), Number(year)];
+  const dt = new Date(y, m - 1, d);
+  const valid =
+    dt.getFullYear() === y &&
+    dt.getMonth() === m - 1 &&
+    dt.getDate() === d &&
+    y >= 1930 &&
+    dt <= new Date();
+  return valid ? `${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')}.${y}` : null;
+}
+
 function parse(text) {
-  const matrikel = [...new Set(text.match(MATRIKEL_RE) || [])];
-  const now = new Date();
-  const dates = [];
-  for (const m of text.matchAll(DATE_RE)) {
-    const [day, month, year] = [Number(m[1]), Number(m[2]), Number(m[3])];
-    const dt = new Date(year, month - 1, day);
-    const valid =
-      dt.getFullYear() === year &&
-      dt.getMonth() === month - 1 &&
-      dt.getDate() === day &&
-      year >= 1930 &&
-      dt <= now;
-    if (valid) {
-      dates.push(`${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`);
+  // 1. Bevorzugt über die Anker "geb." und "Nr."
+  const geb = text.match(GEB_RE);
+  const nr = text.match(NR_RE);
+  const gebDate = geb ? toDate(geb[1], geb[2], geb[3]) : null;
+  let anchors = '';
+  if (gebDate) anchors += 'geb ';
+  if (nr) anchors += 'nr';
+
+  // 2. Fallback: alle Kandidaten, Daten nach "bis" (Semesterticket) ausschließen
+  const matrikel = nr ? [nr[1]] : [...new Set(text.match(MATRIKEL_RE) || [])];
+  let dates = [];
+  if (gebDate) {
+    dates = [gebDate];
+  } else {
+    for (const m of text.matchAll(DATE_RE)) {
+      if (/bis\W*$/i.test(text.slice(Math.max(0, m.index - 8), m.index))) continue;
+      const d = toDate(m[1], m[2], m[3]);
+      if (d) dates.push(d);
     }
   }
-  return { matrikel, dates: [...new Set(dates)] };
+  return { matrikel, dates: [...new Set(dates)], anchors: anchors.trim() };
 }
 
 async function recognize(source, label, useThreshold = $('#opt-threshold').checked) {
   const w = await getWorker();
   const t0 = performance.now();
+  const roi = source.dataset?.roi === '1';
+  await w.setParameters(
+    roi
+      ? // Datenbereich: zusammenhängender Block, Buchstaben für die Anker "geb." / "Matrikel-Nr."
+        { tessedit_pageseg_mode: '6', tessedit_char_whitelist: '0123456789.,-gebMatrikelNr' }
+      : // ganze Karte: verstreuter Text, nur Ziffern
+        { tessedit_pageseg_mode: '11', tessedit_char_whitelist: '0123456789.,' },
+  );
   const input = preprocess(source, useThreshold);
   const { data } = await w.recognize(input);
   const ms = Math.round(performance.now() - t0);
-  const { matrikel, dates } = parse(data.text);
+  const { matrikel, dates, anchors } = parse(data.text);
 
   $('#result').hidden = false;
   $('#result').classList.toggle('partial', !(matrikel.length && dates.length));
@@ -271,7 +306,7 @@ async function recognize(source, label, useThreshold = $('#opt-threshold').check
   $('#r-raw').textContent =
     `Konfidenz: ${Math.round(data.confidence)} %\n\n${data.text.trim()}\n\n` +
     `Matrikel-Kandidaten: ${matrikel.join(', ') || '–'}\nDatum-Kandidaten: ${dates.join(', ') || '–'}`;
-  const mode = useThreshold ? 'S/W' : 'Grau';
+  const mode = `${useThreshold ? 'S/W' : 'Grau'}${roi ? ', ROI' : ''}${anchors ? ', Anker: ' + anchors : ''}`;
   const raw = dates.length ? '' : ` Roh="${data.text.trim().replace(/\s+/g, ' ').slice(0, 80)}"`;
   log(`${label} [${mode}]: ${ms} ms, Matrikel=[${matrikel}] Datum=[${dates}]${raw}`);
   return { matrikel, dates, ms };
@@ -377,3 +412,4 @@ async function startLive() {
 }
 
 checks();
+$('#opt-roi').onchange = (e) => $('#roi').classList.toggle('off', !e.target.checked);

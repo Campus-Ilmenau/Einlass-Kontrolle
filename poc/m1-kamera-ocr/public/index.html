@@ -27,7 +27,10 @@
       </div>
       <div id="viewer" hidden>
         <video id="video" playsinline muted></video>
-        <div id="frame"><span>Thoska hier platzieren</span></div>
+        <div id="frame">
+          <div id="roi"></div>
+          <span>Thoska quer, Foto links</span>
+        </div>
       </div>
       <p id="cam-info" class="muted"></p>
     </section>
@@ -45,6 +48,10 @@
       <label class="toggle"
         ><input id="opt-threshold" type="checkbox" checked /> Schwarz/Weiß-Schwelle (Otsu) für
         Einzelbild – Live wechselt automatisch</label
+      >
+      <label class="toggle"
+        ><input id="opt-roi" type="checkbox" checked /> Nur Datenbereich auswerten (gestrichelter
+        Rahmen)</label
       >
       <p id="ocr-status" class="muted">OCR wird beim ersten Erkennen geladen …</p>
       <div id="result" class="result" hidden>
