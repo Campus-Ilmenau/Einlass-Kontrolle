@@ -7,8 +7,8 @@ step_docker() {
     install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
-    # shellcheck source=/dev/null
     local codename
+    # shellcheck source=/dev/null
     codename=$(. /etc/os-release && echo "$VERSION_CODENAME")
     write_if_changed /etc/apt/sources.list.d/docker.list <<LIST || true
 deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian ${codename} stable

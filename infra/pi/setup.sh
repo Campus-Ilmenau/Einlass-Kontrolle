@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source-path=SCRIPTDIR
 # Richtet einen frisch installierten Raspberry Pi (Raspberry Pi OS Lite, 64 Bit) als Einlass-Gerät ein.
 # Idempotent: kann beliebig oft ausgeführt werden.
 #
