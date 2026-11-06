@@ -16,4 +16,5 @@ konzept
 planung
 infra/pi
 **/*.test.ts
+**/*.test.tsx
 apps/api/test
