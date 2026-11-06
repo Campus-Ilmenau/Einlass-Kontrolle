@@ -6,7 +6,8 @@ Status: ☐ offen · ☑ entschieden
 - ☑ Barcode/QR-Code auf der Thoska+? → **Nein.** Erfassung per **OCR**, Fallback ist die manuelle Eingabe
 - ☑ Format der Matrikelnummer → **immer 5-stellig, numerisch** (`^\d{5}$`)
 - ☑ Unterstützte Ausweise → **nur Thoska** (Gäste ohne Thoska werden nicht über das System geprüft)
-- ☐ Format des Geburtsdatums auf der Karte (TT.MM.JJJJ?) → wird im OCR-Prototyp (M1) geprüft
+- ☑ Format des Geburtsdatums auf der Karte → **TT.MM.JJJJ**
+- ☑ OCR-Machbarkeit → **bestätigt** (M1: zuverlässig, < 3 s auf iPad)
 
 ## Hardware / Netzwerk
 - ☑ Pi-Modell → **Raspberry Pi 4**
@@ -15,7 +16,7 @@ Status: ☐ offen · ☑ entschieden
 - ☑ Uhrzeit → **RTC-Modul (DS3231) + NTP bei Ethernet + automatischer Abgleich bei jeder Client-Anmeldung**
   (Login und Sitzungs-Wiederaufnahme, mit Schutzregeln). Details in [04-hardware-und-netzwerk.md](04-hardware-und-netzwerk.md#automatischer-zeitabgleich-bei-anmeldung)
 - ☑ HTTPS → **self-signed Zertifikat** (Browser-Warnung einmal pro Gerät bestätigen).
-  Muss in M1 auf iOS und Android getestet werden. Plan B ist eine eigene CA
+  Kamera-Freigabe auf iPad bestätigt (M1). iPhone/Android noch testen. Plan B ist eine eigene CA
 - ☑ Ein Pi pro Club, keine Mandantentrennung
 
 ## Fachlich

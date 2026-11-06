@@ -1,13 +1,15 @@
 # 08 – Ausweis-Scan (Thoska+)
 
-Das ist der **technisch riskanteste Teil** und wird früh als Prototyp (M1) geprüft.
+Das war der **technisch riskanteste Teil**. Der Prototyp (M1) hat ihn bestätigt: Auf dem iPad wurden Matrikelnummer
+und Geburtsdatum zuverlässig und in **unter 3 Sekunden** stabil erkannt ([Ergebnis](../planung/M1-machbarkeit-prototyp.md#ergebnis-06112026)).
 
 ## Ausgangslage
 - Unterstützt wird **nur die Thoska+**
 - Auf der Karte sind Matrikelnummer (**5-stellig, numerisch**) und Geburtsdatum aufgedruckt
 - Es gibt **keinen Barcode oder QR-Code**. Die Erfassung läuft deshalb per **OCR**, Fallback ist die manuelle Eingabe
 - Der NFC-Chip (MIFARE DESFire) ist nicht frei auslesbar und wird nicht genutzt
-- Noch zu prüfen: Datumsformat auf der Karte, Position der Felder, verschiedene Kartengenerationen
+- Datumsformat auf der Karte: **`TT.MM.JJJJ`**
+- Noch zu prüfen: verschiedene Kartengenerationen
 
 ## Erfassung per OCR im Browser
 - Kamera-Stream per `getUserMedia({ video: { facingMode: 'environment' } })`
