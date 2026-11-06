@@ -2,5 +2,27 @@
   "name": "@einlass/shared",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "description": "Gemeinsame Fachlogik und Schemas für API und Web-App der Einlass-Kontrolle",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "vitest": "5.1.0"
+  }
 }
