@@ -1,0 +1,19 @@
+# Nur was für die Images gebraucht wird
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+.git
+.github
+.vscode
+.idea
+.env
+**/.env
+**/.env.*
+!**/.env.example
+poc
+konzept
+planung
+infra/pi
+**/*.test.ts
+apps/api/test

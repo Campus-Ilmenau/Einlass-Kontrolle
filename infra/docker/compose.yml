@@ -1,0 +1,78 @@
+# Einlass-Kontrolle auf dem Raspberry Pi
+#
+# Auf dem Pi liegt diese Datei unter /opt/einlass/compose.yml, daneben eine .env mit den
+# Geheimnissen (erzeugt von infra/pi/setup.sh, Schritt "app").
+#
+#   docker compose up -d --no-build    # Images aus der Registry bzw. lokal vorhanden
+#   docker compose build               # Images aus dem Quellcode bauen (Repo-Checkout)
+#
+name: einlass
+
+x-image: &image-defaults
+  restart: unless-stopped
+  logging:
+    driver: local
+    options:
+      max-size: 10m
+      max-file: '3'
+
+services:
+  db:
+    <<: *image-defaults
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: einlass
+      POSTGRES_DB: einlass
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt}
+    volumes:
+      - dbdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U einlass -d einlass']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+
+  api:
+    <<: *image-defaults
+    image: ${EINLASS_REGISTRY:-ghcr.io/campus-ilmenau}/einlass-api:${EINLASS_VERSION:-main}
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgres://einlass:${POSTGRES_PASSWORD}@db:5432/einlass
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET fehlt}
+      COOKIE_SECURE: 'true'
+      SESSION_HOURS: ${SESSION_HOURS:-12}
+      HOSTD_SOCKET: /run/einlass/hostd.sock
+      ADMIN_INITIAL_NAME: ${ADMIN_INITIAL_NAME:-admin}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+    # Zugriff auf den Socket von einlass-hostd (Gruppe "einlass" des Hosts)
+    group_add:
+      - '${EINLASS_GID:?EINLASS_GID fehlt}'
+    volumes:
+      - /run/einlass:/run/einlass
+
+  proxy:
+    <<: *image-defaults
+    image: ${EINLASS_REGISTRY:-ghcr.io/campus-ilmenau}/einlass-proxy:${EINLASS_VERSION:-main}
+    build:
+      context: ../..
+      dockerfile: infra/docker/proxy/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - /etc/einlass/tls:/etc/einlass/tls:ro
+      - ${EINLASS_POC_DIR:-./poc}:/usr/share/nginx/poc:ro
+
+volumes:
+  dbdata:
