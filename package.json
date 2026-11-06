@@ -9,11 +9,12 @@
     "node": ">=24"
   },
   "scripts": {
+    "build:shared": "pnpm --filter @einlass/shared build",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm build:shared && pnpm -r --if-present typecheck",
+    "test": "pnpm build:shared && pnpm -r --if-present test",
     "build": "pnpm -r --if-present build"
   },
   "devDependencies": {

@@ -4,42 +4,44 @@
 Usern, Listen und Veranstaltungen sowie Prüf-Endpunkt. Getestet und als arm64-Image baubar.
 
 ## Aufgabe 3.1 – Projekt-Grundgerüst
-- [ ] `apps/api`: Fastify + TypeScript
+- [x] `apps/api`: Fastify + TypeScript
 - [x] `packages/shared`: zod-Schemas, Matrikel-Regex, Altersberechnung, API-Typen, OCR-Auswertung der Thoska
-- [ ] TypeORM-DataSource für PostgreSQL, Konfiguration über Env-Variablen
-- [ ] Lokale Entwicklung: `docker-compose.dev.yml` mit Postgres
-- [ ] Logging (pino), zentrales Fehlerformat, Request-Validierung mit zod
-- [ ] Health-Endpoint `/api/health`
+- [x] TypeORM-DataSource für PostgreSQL, Konfiguration über Env-Variablen (zod-geprüft)
+- [x] Lokale Entwicklung und Tests: `embedded-postgres` (kein Docker nötig)
+- [x] Logging (pino), zentrales Fehlerformat, Request-Validierung mit zod
+- [x] Health-Endpoint `/api/health`
 
 ## Aufgabe 3.2 – Datenmodell & Migrationen
-- [ ] Entity `User` (role, disabled, validUntil, failedLoginCount, lockedUntil)
-- [ ] Entity `FreeList`, `FreeListEntry` (Unique-Index auf listId + matrikelnummer, Index auf matrikelnummer)
-- [ ] Entity `Event` (startsAt, endsAt, hashSalt) + n:m `EventFreeList`
-- [ ] Entity `CheckLog`, Zähler bzw. `EventStats`
-- [ ] Entity `Setting` (checkLogRetentionDays)
-- [ ] Migrationen statt `synchronize`, Ausführung beim Start
-- [ ] Seed: initialer Admin aus Env-Variablen
+- [x] Entity `User` (role, disabled, validUntil, failedLoginCount, lockedUntil)
+- [x] Entity `FreeList`, `FreeListEntry` (Unique-Index auf listId + matrikelnummer, Index auf matrikelnummer)
+- [x] Entity `Event` (startsAt, endsAt, hashSalt) + n:m `EventFreeList`, Überschneidung per Exclusion-Constraint verhindert
+- [x] Entity `CheckLog`
+- [ ] Zähler bzw. `EventStats`
+- [x] Entity `Setting` (checkLogRetentionDays)
+- [x] Migrationen statt `synchronize`, Ausführung beim Start
+- [x] Seed: initialer Admin aus Env-Variablen
 
 ## Aufgabe 3.3 – Authentifizierung & Rollen
-- [ ] argon2-Hashing
-- [ ] `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` (`@fastify/cookie`, `@fastify/jwt`)
-- [ ] Sperrlogik: 5 Fehlversuche → `lockedUntil = now + 15 min`, Reset bei Erfolg
-- [ ] Prüfung `disabled` / `validUntil` / `lockedUntil` beim Login **und** bei jedem Request
-- [ ] Rollen-Hooks (`ADMIN`, `CONTROLLER`), strikt getrennt
-- [ ] `@fastify/rate-limit` am Login
+- [x] argon2-Hashing (argon2id, `@node-rs/argon2`)
+- [x] `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` (`@fastify/cookie`, `@fastify/jwt`)
+- [x] Sperrlogik: 5 Fehlversuche → `lockedUntil = now + 15 min`, Reset bei Erfolg
+- [x] Prüfung `disabled` / `validUntil` / `lockedUntil` beim Login **und** bei jedem Request
+- [x] Rollen-Hooks (`ADMIN`, `CONTROLLER`), strikt getrennt
+- [x] `@fastify/rate-limit` am Login
 
 ## Aufgabe 3.3b – Automatischer Zeitabgleich
 - [x] Entscheidungslogik `decideTimeSync` in `packages/shared` (Uhr wird übergeben, unit-getestet)
-- [ ] Service `TimeSyncService` in der API (ruft `decideTimeSync`, setzt Zeit über `einlass-hostd`)
-- [ ] Auslöser: erfolgreicher Login (`clientTime` im Body) und `GET /auth/me` (Header `X-Client-Time`)
-- [ ] Schwelle 30 s, Antwort `timeSync { driftSeconds, action, serverTime }`
+- [x] Service `TimeSyncService` in der API (ruft `decideTimeSync`, setzt Zeit über `einlass-hostd`)
+- [x] Auslöser: erfolgreicher Login (`clientTime` im Body) und `GET /auth/me` (Header `X-Client-Time`)
+- [x] Schwelle 30 s, Antwort `timeSync { driftSeconds, action, serverTime }`
 - [ ] Schutzregeln: Untergrenze `lastKnownTime`, Obergrenze +2 Jahre, Sperre 10 min nach letzter Korrektur, max. ±5 min während aktiver Veranstaltung
 - [ ] `lastKnownTime` minütlich + beim Shutdown persistieren
-- [ ] Anbindung an den Host-Dienst (setzt `date` + `hwclock -w`, aus M2)
-- [ ] Reihenfolge im Login: Passwort prüfen → **Zeitabgleich** → Sperr-/Ablaufprüfung → JWT signieren
-- [ ] `clockTolerance` bei der JWT-Prüfung (z. B. 5 min)
-- [ ] Test: Pi-Uhr 2 Tage zurück → Login → Token ist nach der Korrektur gültig
-- [ ] Entity `TimeSyncLog`, `GET /admin/system/time-log`
+- [x] Anbindung an den Host-Dienst (`UnixSocketHostClient`, Noop-Variante für die Entwicklung)
+- [x] Reihenfolge im Login: Passwort prüfen → **Zeitabgleich** → Sperr-/Ablaufprüfung → JWT signieren
+- [x] `clockTolerance` bei der JWT-Prüfung (5 min)
+- [x] Test: Pi-Uhr 2 Tage zurück → Login → Token ist nach der Korrektur gültig
+- [x] Entity `TimeSyncLog`
+- [ ] `GET /admin/system/time-log`
 - [x] Unit-Tests für alle Regeln (Sprung vor/zurück, zweiter Client, aktive Veranstaltung, Grenzwerte)
 
 ## Aufgabe 3.4 – Admin: Kontrolleur:innen
