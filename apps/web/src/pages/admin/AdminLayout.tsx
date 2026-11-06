@@ -4,7 +4,7 @@ import {
   TeamOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons';
-import { Result, theme } from 'antd';
+import { theme } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { AppHeader } from '../../components/AppHeader';
 
@@ -88,9 +88,4 @@ export function AdminLayout() {
       </nav>
     </div>
   );
-}
-
-/** Platzhalter für Bereiche, die im nächsten Schritt umgesetzt werden. */
-export function ComingSoon({ title }: { title: string }) {
-  return <Result status="info" title={title} subTitle="Folgt im nächsten Schritt." />;
 }

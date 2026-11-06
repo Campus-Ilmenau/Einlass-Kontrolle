@@ -8,7 +8,13 @@ import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
 import { HomeRedirect, RequireRole } from './auth/guards';
-import { AdminLayout, ComingSoon } from './pages/admin/AdminLayout';
+import { AdminLayout } from './pages/admin/AdminLayout';
+import { EventsPage } from './pages/admin/EventsPage';
+import { EventStatsPage } from './pages/admin/EventStatsPage';
+import { ListDetailPage } from './pages/admin/ListDetailPage';
+import { ListsPage } from './pages/admin/ListsPage';
+import { SystemPage } from './pages/admin/SystemPage';
+import { UsersPage } from './pages/admin/UsersPage';
 import { LoginPage } from './pages/LoginPage';
 import { ScanPage } from './pages/scan/ScanPage';
 
@@ -38,10 +44,12 @@ const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Navigate to="events" replace /> },
-      { path: 'events', element: <ComingSoon title="Veranstaltungen" /> },
-      { path: 'lists', element: <ComingSoon title="Freilisten" /> },
-      { path: 'users', element: <ComingSoon title="Kontrolleur:innen" /> },
-      { path: 'settings', element: <ComingSoon title="System & Einstellungen" /> },
+      { path: 'events', element: <EventsPage /> },
+      { path: 'events/:id', element: <EventStatsPage /> },
+      { path: 'lists', element: <ListsPage /> },
+      { path: 'lists/:id', element: <ListDetailPage /> },
+      { path: 'users', element: <UsersPage /> },
+      { path: 'settings', element: <SystemPage /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
