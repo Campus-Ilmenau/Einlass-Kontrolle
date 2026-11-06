@@ -9,10 +9,12 @@ import {
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
 import type { DataSource } from 'typeorm';
+import { adminRoutes } from './admin/index.js';
 import { authRoutes } from './auth/routes.js';
 import { SESSION_COOKIE } from './auth/session.js';
 import type { Config } from './config.js';
 import type { HostClient } from './host/hostd-client.js';
+import { ApiError, fromDatabaseError } from './http/errors.js';
 import { TimeSyncService } from './time/time-sync-service.js';
 
 export interface AppDeps {
@@ -74,6 +76,10 @@ export async function buildApp(deps: AppDeps) {
         issues: error.validation.map((v) => ({ path: v.instancePath, message: v.message })),
       });
     }
+    const known = error instanceof ApiError ? error : fromDatabaseError(error);
+    if (known) {
+      return reply.code(known.statusCode).send({ error: known.code, message: known.message });
+    }
     const status = error.statusCode ?? 500;
     if (status >= 500) request.log.error({ err: error }, 'Unerwarteter Fehler');
     return reply.code(status).send({
@@ -91,6 +97,7 @@ export async function buildApp(deps: AppDeps) {
         hostd: app.host.available,
       }));
       await api.register(authRoutes, { prefix: '/auth' });
+      await api.register(adminRoutes, { prefix: '/admin' });
     },
     { prefix: '/api' },
   );
