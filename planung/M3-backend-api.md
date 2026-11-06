@@ -5,7 +5,7 @@ Usern, Listen und Veranstaltungen sowie Prüf-Endpunkt. Getestet und als arm64-I
 
 ## Aufgabe 3.1 – Projekt-Grundgerüst
 - [ ] `apps/api`: Fastify + TypeScript
-- [ ] `packages/shared`: zod-Schemas, Matrikel-Regex, Altersberechnung, API-Typen
+- [x] `packages/shared`: zod-Schemas, Matrikel-Regex, Altersberechnung, API-Typen, OCR-Auswertung der Thoska
 - [ ] TypeORM-DataSource für PostgreSQL, Konfiguration über Env-Variablen
 - [ ] Lokale Entwicklung: `docker-compose.dev.yml` mit Postgres
 - [ ] Logging (pino), zentrales Fehlerformat, Request-Validierung mit zod
@@ -29,7 +29,8 @@ Usern, Listen und Veranstaltungen sowie Prüf-Endpunkt. Getestet und als arm64-I
 - [ ] `@fastify/rate-limit` am Login
 
 ## Aufgabe 3.3b – Automatischer Zeitabgleich
-- [ ] Service `TimeSyncService` (Logik in `packages/shared` bzw. API, gut unit-testbar mit injizierter Uhr)
+- [x] Entscheidungslogik `decideTimeSync` in `packages/shared` (Uhr wird übergeben, unit-getestet)
+- [ ] Service `TimeSyncService` in der API (ruft `decideTimeSync`, setzt Zeit über `einlass-hostd`)
 - [ ] Auslöser: erfolgreicher Login (`clientTime` im Body) und `GET /auth/me` (Header `X-Client-Time`)
 - [ ] Schwelle 30 s, Antwort `timeSync { driftSeconds, action, serverTime }`
 - [ ] Schutzregeln: Untergrenze `lastKnownTime`, Obergrenze +2 Jahre, Sperre 10 min nach letzter Korrektur, max. ±5 min während aktiver Veranstaltung
@@ -39,7 +40,7 @@ Usern, Listen und Veranstaltungen sowie Prüf-Endpunkt. Getestet und als arm64-I
 - [ ] `clockTolerance` bei der JWT-Prüfung (z. B. 5 min)
 - [ ] Test: Pi-Uhr 2 Tage zurück → Login → Token ist nach der Korrektur gültig
 - [ ] Entity `TimeSyncLog`, `GET /admin/system/time-log`
-- [ ] Unit-Tests für alle Regeln (Sprung vor/zurück, zweiter Client, aktive Veranstaltung, Grenzwerte)
+- [x] Unit-Tests für alle Regeln (Sprung vor/zurück, zweiter Client, aktive Veranstaltung, Grenzwerte)
 
 ## Aufgabe 3.4 – Admin: Kontrolleur:innen
 - [ ] CRUD `/admin/users`
@@ -74,7 +75,8 @@ Usern, Listen und Veranstaltungen sowie Prüf-Endpunkt. Getestet und als arm64-I
 - [ ] `GET /system/display` (nur localhost)
 
 ## Aufgabe 3.9 – Tests & Build
-- [ ] Unit-Tests: Altersberechnung (Randfälle!), Sperrlogik, Veranstaltungs-Überschneidung, Import-Parser (CSV/XLSX)
+- [x] Unit-Tests: Altersberechnung (Randfälle: Geburtstag heute, 29.02., Zeitzone/Sommerzeit), Matrikel-Listen-Parser
+- [ ] Unit-Tests: Sperrlogik, Veranstaltungs-Überschneidung, Import-Parser (CSV/XLSX)
 - [ ] Integrationstests mit Test-Postgres: Login, Rollen, Checks, Doppel-Scan
 - [ ] Dockerfile (multi-stage, `linux/arm64`)
 - [ ] OpenAPI-Doku (`@fastify/swagger`)
