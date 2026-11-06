@@ -25,8 +25,8 @@ Die App zeigt bei `adjusted` kurz „Uhrzeit des Systems wurde korrigiert“, be
 |---|---|---|
 | GET | `/admin/users` | Liste inkl. Status (aktiv, gesperrt bis, abgelaufen) |
 | POST | `/admin/users` | `{ name, password, role, validUntil? }` |
-| PATCH | `/admin/users/:id` | Name, Passwort, `disabled`, `validUntil`, Sperre aufheben |
-| DELETE | `/admin/users/:id` | löschen |
+| PATCH | `/admin/users/:id` | Name, Passwort, Rolle, `disabled`, `validUntil`, `unlock: true` (Sperre aufheben). Schutz: eigenes Konto nicht sperren/herabstufen, letzter aktiver Admin bleibt (`SELF`, `LAST_ADMIN`) |
+| DELETE | `/admin/users/:id` | löschen (nicht das eigene Konto, nicht den letzten aktiven Admin) |
 
 ## Admin: Freilisten
 | Methode | Pfad | Beschreibung |
@@ -37,15 +37,18 @@ Die App zeigt bei `adjusted` kurz „Uhrzeit des Systems wurde korrigiert“, be
 | DELETE | `/admin/lists/:id` | löschen |
 | GET | `/admin/lists/:id/entries` | Einträge (paginiert, Suche) |
 | POST | `/admin/lists/:id/entries` | `{ matrikelnummern: string[] }`, für einzeln und Copy-Paste |
-| POST | `/admin/lists/:id/import` | Multipart-Upload **CSV oder XLSX**, Modus `append` oder `replace`, optional Spalte → Report (neu, doppelt, ungültig) |
+| POST | `/admin/lists/:id/import` | Multipart (`file`, optional `mode` = `append`/`replace`, `column` = Überschrift oder Nummer). **CSV** (`;` `,` Tab) oder **XLSX**, max. 5 MB. Spalte wird sonst automatisch erkannt → Bericht (neu, schon vorhanden, entfernt, doppelt, ungültige Zeilen) |
 | DELETE | `/admin/lists/:id/entries/:entryId` | Eintrag entfernen |
+| DELETE | `/admin/lists/:id/entries` | Liste leeren → `{ removed }` |
 
 ## Admin: Veranstaltungen
 | Methode | Pfad | Beschreibung |
 |---|---|---|
 | GET | `/admin/events` | Liste (vergangen, aktiv, geplant) |
-| POST | `/admin/events` | `{ name, startsAt, endsAt, listIds[] }`, Überschneidungsprüfung |
-| PATCH | `/admin/events/:id` | ändern (auch Listen-Zuordnung), z. B. vorzeitig beenden: `endsAt = now` |
+| POST | `/admin/events` | `{ name, startsAt, endsAt, listIds[] }`. Überschneidung → `409 EVENT_OVERLAP` (Exclusion-Constraint in der DB) |
+| GET | `/admin/events/:id` | eine Veranstaltung |
+| PATCH | `/admin/events/:id` | ändern (auch Listen-Zuordnung) |
+| POST | `/admin/events/:id/end` | laufende Veranstaltung sofort beenden |
 | DELETE | `/admin/events/:id` | löschen |
 | GET | `/admin/events/:id/stats` | Zähler: gesamt, frei je Liste, U16, U18, je Kontrolleur:in, Doppel-Scans |
 

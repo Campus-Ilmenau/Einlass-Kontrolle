@@ -34,8 +34,8 @@ Usern, Listen und Veranstaltungen sowie Prüf-Endpunkt. Getestet und als arm64-I
 - [x] Service `TimeSyncService` in der API (ruft `decideTimeSync`, setzt Zeit über `einlass-hostd`)
 - [x] Auslöser: erfolgreicher Login (`clientTime` im Body) und `GET /auth/me` (Header `X-Client-Time`)
 - [x] Schwelle 30 s, Antwort `timeSync { driftSeconds, action, serverTime }`
-- [ ] Schutzregeln: Untergrenze `lastKnownTime`, Obergrenze +2 Jahre, Sperre 10 min nach letzter Korrektur, max. ±5 min während aktiver Veranstaltung
-- [ ] `lastKnownTime` minütlich + beim Shutdown persistieren
+- [x] Schutzregeln: Untergrenze `lastKnownTime`, Obergrenze +2 Jahre, Sperre 10 min nach letzter Korrektur, max. ±5 min während aktiver Veranstaltung
+- [x] `lastKnownTime` minütlich + beim Shutdown persistieren (in `einlass-hostd`)
 - [x] Anbindung an den Host-Dienst (`UnixSocketHostClient`, Noop-Variante für die Entwicklung)
 - [x] Reihenfolge im Login: Passwort prüfen → **Zeitabgleich** → Sperr-/Ablaufprüfung → JWT signieren
 - [x] `clockTolerance` bei der JWT-Prüfung (5 min)
@@ -45,21 +45,21 @@ Usern, Listen und Veranstaltungen sowie Prüf-Endpunkt. Getestet und als arm64-I
 - [x] Unit-Tests für alle Regeln (Sprung vor/zurück, zweiter Client, aktive Veranstaltung, Grenzwerte)
 
 ## Aufgabe 3.4 – Admin: Kontrolleur:innen
-- [ ] CRUD `/admin/users`
-- [ ] Passwort zurücksetzen, Sperre aufheben, deaktivieren, `validUntil`
-- [ ] Schutz: letzter Admin kann nicht gelöscht oder deaktiviert werden
+- [x] CRUD `/admin/users`
+- [x] Passwort zurücksetzen, Sperre aufheben, deaktivieren, `validUntil`
+- [x] Schutz: letzter Admin kann nicht gelöscht oder deaktiviert werden, eigenes Konto nicht sperren/löschen
 
 ## Aufgabe 3.5 – Admin: Freilisten
-- [ ] CRUD `/admin/lists`
-- [ ] Einträge: hinzufügen (einzeln oder als Array für Copy-Paste), entfernen, suchen, paginieren
-- [ ] Import-Endpoint (`@fastify/multipart`): **CSV** und **XLSX** (z. B. `exceljs`), Spaltenwahl, append/replace
-- [ ] Normalisierung (Leerzeichen trimmen, Duplikate) und Validierung `^\d{5}$` → Import-Report
+- [x] CRUD `/admin/lists`
+- [x] Einträge: hinzufügen (einzeln oder als Array für Copy-Paste), entfernen, suchen, paginieren, Liste leeren
+- [x] Import-Endpoint (`@fastify/multipart`): **CSV** (`csv-parse`) und **XLSX** (`read-excel-file`), Spaltenwahl/-erkennung, append/replace
+- [x] Normalisierung (Leerzeichen trimmen, Duplikate, Excel-Zahlen auffüllen) und Validierung `^\d{5}$` → Import-Report
 
 ## Aufgabe 3.6 – Admin: Veranstaltungen
-- [ ] CRUD `/admin/events` mit Listen-Zuordnung
-- [ ] Validierung: `endsAt > startsAt`, keine Überschneidung mit anderen Veranstaltungen
-- [ ] `hashSalt` beim Anlegen zufällig erzeugen
-- [ ] Hilfsfunktion „aktive Veranstaltung jetzt“
+- [x] CRUD `/admin/events` mit Listen-Zuordnung, vorzeitig beenden
+- [x] Validierung: `endsAt > startsAt`, keine Überschneidung mit anderen Veranstaltungen
+- [x] `hashSalt` beim Anlegen zufällig erzeugen
+- [x] Hilfsfunktion „aktive Veranstaltung jetzt“ (`TimeSyncService.isEventActive`)
 - [ ] `GET /admin/events/:id/stats`
 
 ## Aufgabe 3.7 – Prüf-Endpunkt
@@ -71,14 +71,14 @@ Usern, Listen und Veranstaltungen sowie Prüf-Endpunkt. Getestet und als arm64-I
 - [ ] CheckLog schreiben, Zähler erhöhen
 
 ## Aufgabe 3.8 – Einstellungen, System & Jobs
-- [ ] `GET/PATCH /admin/settings` (Aufbewahrungsfrist)
+- [x] `GET/PATCH /admin/settings` (Aufbewahrungsfrist)
 - [ ] Aufbewahrungs-Job: CheckLogs älter als die Frist löschen, Zähler bleiben
 - [ ] `POST /admin/system/time` → Host-Mechanismus aus M2
 - [ ] `GET /system/display` (nur localhost)
 
 ## Aufgabe 3.9 – Tests & Build
 - [x] Unit-Tests: Altersberechnung (Randfälle: Geburtstag heute, 29.02., Zeitzone/Sommerzeit), Matrikel-Listen-Parser
-- [ ] Unit-Tests: Sperrlogik, Veranstaltungs-Überschneidung, Import-Parser (CSV/XLSX)
+- [x] Unit-Tests: Sperrlogik, Veranstaltungs-Überschneidung, Import-Parser (CSV/XLSX)
 - [ ] Integrationstests mit Test-Postgres: Login, Rollen, Checks, Doppel-Scan
 - [ ] Dockerfile (multi-stage, `linux/arm64`)
 - [ ] OpenAPI-Doku (`@fastify/swagger`)
