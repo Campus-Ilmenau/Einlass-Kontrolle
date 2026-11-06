@@ -10,6 +10,7 @@
 | API | Node.js, TypeScript, **Fastify**, **TypeORM** | Docker |
 | Datenbank | **PostgreSQL** | Docker (Volume für Daten) |
 | Display-Anzeige | Kiosk: `cage` + Chromium → `https://localhost/display` | Host (systemd-Service) |
+| Host-Dienst `einlass-hostd` | Python, Unix-Socket `/run/einlass/hostd.sock`: Zeit/RTC setzen, Herunterfahren | Host (systemd-Service), API-Container über Gruppe `einlass` |
 
 ## Repo-Struktur (pnpm Workspaces)
 

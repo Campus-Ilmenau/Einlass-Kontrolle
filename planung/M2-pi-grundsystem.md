@@ -25,15 +25,16 @@ Docker läuft und die Uhrzeit stimmt dank RTC. Das Setup ist per Skript reproduz
 - [ ] DS3231 anschließen (I²C ist aktiviert, Overlay wird vom Setup automatisch gesetzt, sobald das Modul erkannt wird)
 - [ ] `hwclock` mit Modul testen (fake-hwclock ist auf Trixie nicht installiert, Fallback ist die Uhr-Datei von systemd-timesyncd)
 - [ ] Stromausfall-Test: Zeit stimmt nach Neustart ohne Netz
-- [ ] Host-Mechanismus zum Setzen der Zeit (für die API): kleiner Dienst oder Unix-Socket, der nur `date` + `hwclock -w` ausführt
-- [ ] NTP (`systemd-timesyncd`/chrony) nur über `eth0`. Nach erfolgreichem Sync `hwclock -w`
+- [x] Host-Mechanismus zum Setzen der Zeit (für die API): `einlass-hostd` über Unix-Socket (setzt Systemzeit + RTC)
+- [x] Letzte bekannte Zeit minütlich speichern, beim Start als Untergrenze anwenden
+- [x] NTP (`systemd-timesyncd`) nur über `eth0` (WLAN hat keine Route nach außen). Nach erfolgreichem Sync stündlich `hwclock -w` (hostd)
 - [ ] Langzeittest: Pi mehrere Tage stromlos → Uhrzeit nach Boot korrekt
 
 ## Aufgabe 2.4b – Ethernet & Herunterfahren
 - [ ] `eth0` per DHCP als optionaler Uplink (nur für den Pi selbst)
 - [ ] Sicherstellen, dass kein Forwarding/NAT von `wlan0` nach `eth0` stattfindet
 - [ ] Hardware-Taster für sauberes Herunterfahren (`dtoverlay=gpio-shutdown`)
-- [ ] Host-Mechanismus für den Shutdown-Befehl aus der API
+- [x] Host-Mechanismus für den Shutdown-Befehl aus der API (`POST /shutdown`, `/reboot` in hostd)
 
 ## Aufgabe 2.5 – Docker
 - [x] Docker Engine + Compose-Plugin installieren, Autostart
