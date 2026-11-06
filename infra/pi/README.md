@@ -31,17 +31,18 @@ TLS-Laufzeit. Nach Änderungen einfach `sudo ./setup.sh accesspoint dns tls` ern
 
 ## Schritte
 
-| Schritt       | Datei                                          | Was passiert                                                                                                     |
-| ------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `base`        | [lib/10-base.sh](lib/10-base.sh)               | apt update/upgrade, Pakete, Zeitzone, `/etc/hosts`                                                               |
-| `docker`      | [lib/20-docker.sh](lib/20-docker.sh)           | Docker CE + Compose-Plugin (offizielles Repo), Log-Limits                                                        |
-| `firewall`    | [lib/30-firewall.sh](lib/30-firewall.sh)       | nftables: **kein Routing** zwischen `wlan0` und `eth0` (systemd-Service `einlass-firewall`)                      |
-| `accesspoint` | [lib/40-accesspoint.sh](lib/40-accesspoint.sh) | NetworkManager-AP `einlass-ap`, WPA2, feste IP `10.42.0.1`, kein NAT                                             |
-| `dns`         | [lib/50-dns.sh](lib/50-dns.sh)                 | dnsmasq nur auf `wlan0`: DHCP + `einlass.lan → 10.42.0.1`, kein Upstream                                         |
-| `rtc`         | [lib/60-rtc.sh](lib/60-rtc.sh)                 | I²C an, DS3231-Overlay **nur wenn Modul erkannt**, `fake-hwclock` entfernen                                      |
-| `tls`         | [lib/70-tls.sh](lib/70-tls.sh)                 | Self-signed-Zertifikat in `/etc/einlass/tls/` (nur bei NTP-synchroner Uhr)                                       |
-| `hostd`       | [lib/90-hostd.sh](lib/90-hostd.sh)             | Host-Dienst `einlass-hostd` für die API: Zeit setzen, RTC schreiben, Herunterfahren                              |
-| `kiosk`       | [lib/80-kiosk.sh](lib/80-kiosk.sh)             | cage + Chromium auf dem DSI-Display (Hochformat), unsichtbarer Cursor, Statusseite mit WLAN-/App-QR-Code und Uhr |
+| Schritt       | Datei                                          | Was passiert                                                                                                                                  |
+| ------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `base`        | [lib/10-base.sh](lib/10-base.sh)               | apt update/upgrade, Pakete, Zeitzone, `/etc/hosts`                                                                                            |
+| `docker`      | [lib/20-docker.sh](lib/20-docker.sh)           | Docker CE + Compose-Plugin (offizielles Repo), Log-Limits                                                                                     |
+| `firewall`    | [lib/30-firewall.sh](lib/30-firewall.sh)       | nftables: **kein Routing** zwischen `wlan0` und `eth0` (systemd-Service `einlass-firewall`)                                                   |
+| `accesspoint` | [lib/40-accesspoint.sh](lib/40-accesspoint.sh) | NetworkManager-AP `einlass-ap`, WPA2, feste IP `10.42.0.1`, kein NAT                                                                          |
+| `dns`         | [lib/50-dns.sh](lib/50-dns.sh)                 | dnsmasq nur auf `wlan0`: DHCP + `einlass.lan → 10.42.0.1`, kein Upstream                                                                      |
+| `rtc`         | [lib/60-rtc.sh](lib/60-rtc.sh)                 | I²C an, DS3231-Overlay **nur wenn Modul erkannt**, `fake-hwclock` entfernen                                                                   |
+| `tls`         | [lib/70-tls.sh](lib/70-tls.sh)                 | Self-signed-Zertifikat in `/etc/einlass/tls/` (nur bei NTP-synchroner Uhr)                                                                    |
+| `hostd`       | [lib/90-hostd.sh](lib/90-hostd.sh)             | Host-Dienst `einlass-hostd` für die API: Zeit setzen, RTC schreiben, Herunterfahren                                                           |
+| `kiosk`       | [lib/80-kiosk.sh](lib/80-kiosk.sh)             | cage + Chromium auf dem DSI-Display (Hochformat), unsichtbarer Cursor, Statusseite mit WLAN-/App-QR-Code und Uhr                              |
+| `app`         | [lib/95-app.sh](lib/95-app.sh)                 | `/opt/einlass` mit `compose.yml` und `.env` (Geheimnisse werden erzeugt), Start per Docker Compose, siehe [infra/docker](../docker/README.md) |
 
 ## Host-Dienst `einlass-hostd`
 

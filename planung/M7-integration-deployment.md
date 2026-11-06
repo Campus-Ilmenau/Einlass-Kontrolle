@@ -4,18 +4,20 @@
 Backups sind geregelt.
 
 ## Aufgabe 7.1 – Docker Compose (Produktion)
-- [ ] `infra/docker/docker-compose.yml`: proxy (nginx + Web-Build), api, db
-- [ ] Web-Image: multi-stage (pnpm build → nginx)
-- [ ] nginx: TLS (self-signed), `/` → SPA mit Fallback, `/api` → API, Security-Header, Umleitung 80 → 443
-- [ ] Zertifikat und WLAN-Konfig als Volumes bzw. read-only Mounts
-- [ ] `.env.example` (DB-Passwort, JWT-Secret, initialer Admin)
-- [ ] `restart: unless-stopped`, Healthchecks, Ressourcenlimits
-- [ ] Migrationen laufen automatisch beim Start der API
+- [x] `infra/docker/compose.yml`: proxy (nginx), api, db
+- [ ] Web-Image: multi-stage (pnpm build → nginx), vorerst Platzhalterseite im Proxy-Image
+- [x] nginx: TLS (self-signed), `/` → SPA mit Fallback, `/api` → API, Security-Header, Umleitung 80 → 443
+- [x] Zertifikat als read-only Mount, hostd-Socket über Gruppe `einlass`
+- [x] `.env` wird vom Setup mit zufälligen Geheimnissen erzeugt (DB-Passwort, JWT-Secret, initialer Admin)
+- [x] `restart: unless-stopped`, Healthchecks, Log-Begrenzung
+- [ ] Ressourcenlimits
+- [x] Migrationen laufen automatisch beim Start der API
 
 ## Aufgabe 7.2 – CI/CD (GitHub Actions)
 - [ ] Workflow „CI“: pnpm install, Lint, Typecheck, Tests (bei jedem Push und PR)
-- [ ] Workflow „Release“: bei Tag `v*` Multi-Arch-Images (`linux/arm64`, optional `amd64`) mit buildx bauen
-- [ ] Push nach **GHCR** (`ghcr.io/<org>/einlass-api`, `einlass-web`)
+- [x] Workflow „Docker-Images“: bei Push auf `main` und Tag `v*` Multi-Arch-Images (`linux/arm64`, `linux/amd64`) mit buildx
+- [x] Push nach **GHCR** (`ghcr.io/campus-ilmenau/einlass-api`, `einlass-proxy`)
+- [ ] GHCR-Pakete öffentlich schalten (sonst braucht der Pi ein Token)
 - [ ] Versionsnummer in der App bzw. im Admin-Bereich sichtbar
 
 ## Aufgabe 7.3 – Auto-Update auf dem Pi (pull-basiert)
