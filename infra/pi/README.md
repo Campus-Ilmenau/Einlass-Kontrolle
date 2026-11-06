@@ -43,6 +43,7 @@ TLS-Laufzeit. Nach Änderungen einfach `sudo ./setup.sh accesspoint dns tls` ern
 | `hostd`       | [lib/90-hostd.sh](lib/90-hostd.sh)             | Host-Dienst `einlass-hostd` für die API: Zeit setzen, RTC schreiben, Herunterfahren                                                           |
 | `kiosk`       | [lib/80-kiosk.sh](lib/80-kiosk.sh)             | cage + Chromium auf dem DSI-Display (Hochformat), unsichtbarer Cursor, Statusseite mit WLAN-/App-QR-Code und Uhr                              |
 | `app`         | [lib/95-app.sh](lib/95-app.sh)                 | `/opt/einlass` mit `compose.yml` und `.env` (Geheimnisse werden erzeugt), Start per Docker Compose, siehe [infra/docker](../docker/README.md) |
+| `update`      | [lib/97-update.sh](lib/97-update.sh)           | Auto-Update `einlass-update`: Timer alle 15 min + sofort bei `eth0 up`                                                                        |
 
 ## Host-Dienst `einlass-hostd`
 
@@ -72,6 +73,29 @@ Test vom Pi aus:
 ```bash
 sudo curl -s --unix-socket /run/einlass/hostd.sock http://hostd/time
 ```
+
+## Auto-Update `einlass-update`
+
+Holt neue Docker-Images aus GHCR, sobald der Pi Internet hat ([`files/einlass-update`](files/einlass-update)):
+
+1. Lock (nur ein Lauf gleichzeitig), Internet-Check (`ghcr.io` erreichbar), sonst Ende
+2. **Läuft eine Veranstaltung? → kein Update** (`skipped`, mit `--force` übergehbar)
+3. RTC aus NTP-Zeit nachstellen (falls vorhanden)
+4. `compose.yml` aus dem Repository holen (`main` bzw. Tag `v<EINLASS_VERSION>`), nur wenn gültig übernehmen
+5. `docker compose pull`. Ohne neue Images → `current`
+6. Datenbank-Backup nach `/var/lib/einlass/backups/` (die letzten 10 bleiben)
+7. Neustart mit Healthcheck. Schlägt er fehl → **Rollback** auf die vorherigen Images (`:rollback`)
+8. Status in `/var/lib/einlass/update-status.json` (`current` / `updated` / `skipped` / `rolled-back` / `failed`)
+
+Auslöser: systemd-Timer (2 min nach dem Boot, dann alle 15 min) und NetworkManager-Hook beim Einstecken des
+Ethernet-Kabels. Manuell:
+
+```bash
+sudo systemctl start einlass-update && journalctl -u einlass-update -n 30
+sudo einlass-update --force   # auch während einer Veranstaltung
+```
+
+Kanal: `EINLASS_VERSION` in `/opt/einlass/.env`: `main` (Entwicklungsstand) oder später z. B. `stable`.
 
 ## Kiosk
 
