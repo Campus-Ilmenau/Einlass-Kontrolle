@@ -80,6 +80,15 @@ export function majorityVote<T>(values: readonly (T | null | undefined)[], need:
   return bestCount >= need ? best : null;
 }
 
+/**
+ * Datenbereich der Thoska (Zeilen "geb." und "Matrikel-Nr.") relativ zur Karte im Querformat,
+ * vermessen an einem Foto (siehe konzept/08). Name, Foto und Semesterticket liegen außerhalb.
+ */
+export const THOSKA_DATA_ROI = { x: 0.4, y: 0.36, w: 0.46, h: 0.3 } as const;
+
+/** Seitenverhältnis einer Scheckkarte (ISO/IEC 7810 ID-1) */
+export const CARD_ASPECT_RATIO = 85.6 / 54;
+
 /** Stabilisierung der Live-Erkennung (Werte aus dem M1-Prototyp). */
 export const OCR_STABILIZATION = {
   window: 15,
