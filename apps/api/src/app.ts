@@ -12,6 +12,8 @@ import type { DataSource } from 'typeorm';
 import { adminRoutes } from './admin/index.js';
 import { authRoutes } from './auth/routes.js';
 import { checkRoutes } from './checks/routes.js';
+import { DisplayBus } from './display/bus.js';
+import { displayApiRoutes } from './display/routes.js';
 import { SESSION_COOKIE } from './auth/session.js';
 import type { Config } from './config.js';
 import type { HostClient } from './host/hostd-client.js';
@@ -39,6 +41,7 @@ declare module 'fastify' {
     host: HostClient;
     now: () => Date;
     timeSync: TimeSyncService;
+    displayBus: DisplayBus;
   }
 }
 
@@ -61,6 +64,7 @@ export async function buildApp(deps: AppDeps) {
   app.decorate('dataSource', deps.dataSource);
   app.decorate('host', deps.host);
   app.decorate('now', now);
+  app.decorate('displayBus', new DisplayBus());
   app.decorate(
     'timeSync',
     new TimeSyncService({ dataSource: deps.dataSource, host: deps.host, now, log: app.log }),
@@ -105,6 +109,7 @@ export async function buildApp(deps: AppDeps) {
       await api.register(adminRoutes, { prefix: '/admin' });
       await api.register(checkRoutes, { prefix: '/checks' });
       await api.register(displayRoutes, { prefix: '/system' });
+      await api.register(displayApiRoutes, { prefix: '/display' });
     },
     { prefix: '/api' },
   );

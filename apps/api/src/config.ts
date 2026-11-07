@@ -15,6 +15,16 @@ const ConfigSchema = z.object({
   SESSION_HOURS: z.coerce.number().min(1).max(48).default(12),
   HOSTD_SOCKET: z.string().default('/run/einlass/hostd.sock'),
   ADMIN_INITIAL_NAME: z.string().trim().min(2).max(50).default('admin'),
+  // Touch-Display am Pi: ohne Token sind die Display-Endpunkte abgeschaltet
+  DISPLAY_TOKEN: z
+    .string()
+    .min(24, 'DISPLAY_TOKEN muss mindestens 24 Zeichen haben')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  // Für den WLAN-QR-Code auf dem Display (steht dort ohnehin öffentlich)
+  WIFI_SSID: z.string().optional(),
+  WIFI_PASSWORD: z.string().optional(),
+  APP_URL: z.string().default('https://einlass.lan'),
   ADMIN_INITIAL_PASSWORD: z
     .string()
     .min(8)

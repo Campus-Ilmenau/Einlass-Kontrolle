@@ -103,6 +103,10 @@ export const testConfig: Config = {
   HOSTD_SOCKET: '/nonexistent',
   ADMIN_INITIAL_NAME: 'admin',
   ADMIN_INITIAL_PASSWORD: undefined,
+  DISPLAY_TOKEN: 'display-token-fuer-tests-0123456789',
+  WIFI_SSID: 'Einlass-Test',
+  WIFI_PASSWORD: 'wlan-passwort',
+  APP_URL: 'https://einlass.lan',
 };
 
 export async function createTestApp(dataSource: DataSource, overrides: Partial<Config> = {}) {
