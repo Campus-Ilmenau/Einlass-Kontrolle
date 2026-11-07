@@ -143,6 +143,27 @@ describe('GET /api/display/stats', () => {
   });
 });
 
+describe('Nächster bitte', () => {
+  it('POST /api/checks/next veröffentlicht ein next-Ereignis (nur Kontrolleur:innen)', async () => {
+    const events: unknown[] = [];
+    const unsubscribe = app.displayBus.subscribeNext((e) => events.push(e));
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/checks/next',
+      cookies: { einlass_session: controllerCookie },
+    });
+    expect(res.statusCode).toBe(204);
+    const asAdmin = await app.inject({
+      method: 'POST',
+      url: '/api/checks/next',
+      cookies: { einlass_session: adminCookie },
+    });
+    expect(asAdmin.statusCode).toBe(403);
+    unsubscribe();
+    expect(events).toHaveLength(1);
+  });
+});
+
 describe('Live-Ereignis nach einem Scan', () => {
   it('wird ohne Matrikelnummer und Geburtsdatum veröffentlicht', async () => {
     await setupEvent();

@@ -34,6 +34,12 @@ export const checkRoutes: FastifyPluginAsyncZod = async (app) => {
     };
   });
 
+  /** Ergebnis wurde auf dem Handy weggetippt → Display am Pi zeigt "Nächster bitte". */
+  app.post('/next', async (_request, reply) => {
+    app.displayBus.publishNext({ at: app.now().toISOString() });
+    return reply.code(204).send();
+  });
+
   app.post(
     '/',
     { schema: { body: CheckRequestSchema, response: { 200: CheckResponseSchema } } },

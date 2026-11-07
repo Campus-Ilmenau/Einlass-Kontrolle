@@ -107,7 +107,7 @@ export const displayApiRoutes: FastifyPluginAsyncZod = async (app) => {
     },
   );
 
-  /** Live-Stream (Server-Sent Events): Ereignis `scan` nach jeder Kontrolle. */
+  /** Live-Stream (Server-Sent Events): `scan` nach jeder Kontrolle, `next` wenn das Ergebnis weggetippt wurde. */
   app.get('/stream', async (request, reply) => {
     reply.hijack();
     const res = reply.raw;
@@ -122,12 +122,16 @@ export const displayApiRoutes: FastifyPluginAsyncZod = async (app) => {
     const unsubscribe = app.displayBus.subscribe((event) => {
       res.write(`event: scan\ndata: ${JSON.stringify(event)}\n\n`);
     });
+    const unsubscribeNext = app.displayBus.subscribeNext((event) => {
+      res.write(`event: next\ndata: ${JSON.stringify(event)}\n\n`);
+    });
     const heartbeat = setInterval(() => res.write(': ping\n\n'), HEARTBEAT_MS);
     heartbeat.unref();
 
     request.raw.on('close', () => {
       clearInterval(heartbeat);
       unsubscribe();
+      unsubscribeNext();
     });
   });
 };
