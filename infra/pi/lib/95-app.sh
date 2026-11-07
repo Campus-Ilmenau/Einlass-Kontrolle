@@ -26,6 +26,11 @@ EINLASS_POC_DIR=${APP_DIR}/poc
 ENV
   fi
   set_config_value "$env_file" EINLASS_GID "$gid"
+  # Display-Token (nur einmal erzeugen) und Daten für den WLAN-QR-Code auf dem Display
+  grep -q '^DISPLAY_TOKEN=.\+' "$env_file" || set_config_value "$env_file" DISPLAY_TOKEN "$(openssl rand -hex 24)"
+  set_config_value "$env_file" WIFI_SSID "$WIFI_SSID"
+  set_config_value "$env_file" WIFI_PASSWORD "$WIFI_PASSWORD"
+  set_config_value "$env_file" DOMAIN "$DOMAIN"
 
   local compose=(docker compose --project-directory "$APP_DIR" -f "$APP_DIR/compose.yml")
   if "${compose[@]}" pull --quiet --ignore-pull-failures 2>/dev/null; then :; fi

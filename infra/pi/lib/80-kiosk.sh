@@ -6,7 +6,7 @@ step_kiosk() {
 
   log "Kiosk-Pakete installieren"
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-    cage chromium wlr-randr grim qrencode fonts-dejavu-core python3 >/dev/null
+    cage chromium wlr-randr grim qrencode fonts-dejavu-core python3 libnss3-tools >/dev/null
 
   if ! id kiosk >/dev/null 2>&1; then
     log "Systembenutzer 'kiosk' anlegen"
@@ -20,6 +20,16 @@ step_kiosk() {
   # Nur für den Kiosk-Benutzer: ~/.icons/default erbt vom unsichtbaren Theme.
   install -d -o kiosk -g kiosk /var/lib/einlass-kiosk/.icons/default
   printf '[Icon Theme]\nInherits=einlass-blank\n' >/var/lib/einlass-kiosk/.icons/default/index.theme
+
+  # Zertifikat im Kiosk-Browser als vertrauenswürdig hinterlegen (NSS-Datenbank des Kiosk-Benutzers),
+  # damit https://<DOMAIN>/display ohne Warnung lädt
+  if [ -f "$EINLASS_ETC/tls/cert.pem" ]; then
+    local nssdb=/var/lib/einlass-kiosk/.pki/nssdb
+    install -d -o kiosk -g kiosk -m 0700 /var/lib/einlass-kiosk/.pki "$nssdb"
+    [ -f "$nssdb/cert9.db" ] || sudo -u kiosk certutil -d "sql:$nssdb" -N --empty-password
+    sudo -u kiosk certutil -d "sql:$nssdb" -D -n einlass 2>/dev/null || true
+    sudo -u kiosk certutil -d "sql:$nssdb" -A -n einlass -t "P,," -i "$EINLASS_ETC/tls/cert.pem"
+  fi
 
   install -m 0755 "$files/einlass-kiosk" /usr/local/bin/einlass-kiosk
   install -m 0755 "$files/einlass-display-render" /usr/local/bin/einlass-display-render

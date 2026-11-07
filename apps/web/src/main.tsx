@@ -13,6 +13,7 @@ import { EventsPage } from './pages/admin/EventsPage';
 import { EventStatsPage } from './pages/admin/EventStatsPage';
 import { ListDetailPage } from './pages/admin/ListDetailPage';
 import { ListsPage } from './pages/admin/ListsPage';
+import { DisplayPage } from './pages/display/DisplayPage';
 import { SystemPage } from './pages/admin/SystemPage';
 import { UsersPage } from './pages/admin/UsersPage';
 import { LoginPage } from './pages/LoginPage';
@@ -27,6 +28,8 @@ const queryClient = new QueryClient({
 const router = createBrowserRouter([
   { path: '/', element: <HomeRedirect /> },
   { path: '/login', element: <LoginPage /> },
+  // Touch-Display am Pi (Kiosk), geschützt per Display-Token statt Anmeldung
+  { path: '/display', element: <DisplayPage /> },
   {
     path: '/scan',
     element: (

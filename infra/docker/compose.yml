@@ -52,6 +52,11 @@ services:
       HOSTD_SOCKET: /run/einlass/hostd.sock
       ADMIN_INITIAL_NAME: ${ADMIN_INITIAL_NAME:-admin}
       ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+      # Touch-Display am Pi (Token kennt nur der Kiosk) und Daten für den WLAN-QR-Code
+      DISPLAY_TOKEN: ${DISPLAY_TOKEN:-}
+      WIFI_SSID: ${WIFI_SSID:-}
+      WIFI_PASSWORD: ${WIFI_PASSWORD:-}
+      APP_URL: https://${DOMAIN:-einlass.lan}
     # Zugriff auf den Socket von einlass-hostd (Gruppe "einlass" des Hosts)
     group_add:
       - '${EINLASS_GID:?EINLASS_GID fehlt}'
