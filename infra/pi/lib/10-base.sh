@@ -17,8 +17,11 @@ step_base() {
   log "Zeitzone Europe/Berlin"
   timedatectl set-timezone Europe/Berlin
 
-  # Der Pi selbst soll seinen App-Namen auflösen können (z. B. für den Kiosk)
-  if ! grep -q "[[:space:]]${DOMAIN}\$" /etc/hosts; then
-    printf '%s\t%s\n' "$AP_IP" "$DOMAIN" >>/etc/hosts
-  fi
+  # Der Pi selbst soll seinen App-Namen auflösen können. Unter Raspberry Pi OS mit cloud-init
+  # wird /etc/hosts bei jedem Boot aus einer Vorlage erzeugt → Eintrag auch dort ergänzen.
+  local hosts
+  for hosts in /etc/hosts /etc/cloud/templates/hosts.debian.tmpl; do
+    [ -f "$hosts" ] || continue
+    grep -q "[[:space:]]${DOMAIN}\$" "$hosts" || printf '%s\t%s\n' "$AP_IP" "$DOMAIN" >>"$hosts"
+  done
 }

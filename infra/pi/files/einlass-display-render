@@ -89,6 +89,7 @@ fi
 cat >/etc/einlass/kiosk.env.new <<ENV
 DISPLAY_OUTPUT=${DISPLAY_OUTPUT:-DSI-1}
 DISPLAY_TRANSFORM=${DISPLAY_TRANSFORM:-normal}
+DOMAIN=${DOMAIN}
 KIOSK_URL=${KIOSK_URL}
 ENV
 # enthält das Display-Token → nur root und der Kiosk-Benutzer dürfen lesen

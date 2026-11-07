@@ -8,20 +8,25 @@ wlr-randr --output "${DISPLAY_OUTPUT:-DSI-1}" --transform "${DISPLAY_TRANSFORM:-
 
 # Beim Booten laufen die Docker-Container evtl. noch nicht: bis zu 2 min auf die Display-Seite
 # warten, sonst die statische Seite (QR-Codes, Uhr) als Rückfallebene zeigen
+# Der Domain-Name wird direkt auf den Pi selbst aufgelöst (unabhängig von /etc/hosts, das
+# cloud-init beim Booten neu schreibt)
 URL="$KIOSK_URL"
+DOMAIN="${DOMAIN:-einlass.lan}"
+probe() { curl -sk -o /dev/null --max-time 2 --resolve "$DOMAIN:443:127.0.0.1" "${URL%%\?*}"; }
 case "$URL" in
 https://*)
   for _ in $(seq 1 60); do
-    curl -sk -o /dev/null --max-time 2 "${URL%%\?*}" && break
+    probe && break
     sleep 2
   done
-  curl -sk -o /dev/null --max-time 2 "${URL%%\?*}" || URL="file:///opt/einlass/display/index.html"
+  probe || URL="file:///opt/einlass/display/index.html"
   ;;
 esac
 
 exec chromium \
   --ozone-platform=wayland \
   --kiosk "$URL" \
+  --host-resolver-rules="MAP $DOMAIN 127.0.0.1" \
   --incognito \
   --lang=de-DE \
   --noerrdialogs \
