@@ -143,6 +143,10 @@ export const FreeListSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   entryCount: z.number().int(),
+  /** Laufende und geplante Veranstaltungen, die diese Liste verwenden (vergangene nicht) */
+  events: z.array(
+    z.object({ id: z.uuid(), name: z.string(), status: z.enum(['ACTIVE', 'PLANNED']) }),
+  ),
   createdAt: InstantSchema,
   updatedAt: InstantSchema,
 });
