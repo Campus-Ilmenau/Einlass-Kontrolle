@@ -25,3 +25,6 @@ infra/pi/config.env
 
 # Prototypen: heruntergeladene Bibliotheken
 poc/*/public/vendor/
+
+# Web-App: Tesseract-Dateien werden beim Build kopiert
+apps/web/public/ocr/
