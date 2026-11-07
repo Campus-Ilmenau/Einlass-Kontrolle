@@ -6,7 +6,7 @@ import {
 } from '@einlass/shared';
 import dayjs from 'dayjs';
 import QRCode from 'qrcode';
-import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 
 /* Größen relativ zur Breite → passt auf 720×1280 (Pi) wie auf andere Displays */
 const vw = (n: number) => `${n}vw`;
@@ -57,15 +57,23 @@ function Qr({ text }: { text: string }) {
         background: '#fff',
         borderRadius: vw(2),
         padding: vw(2),
-        width: vw(42),
-        height: vw(42),
+        width: vw(40),
+        aspectRatio: '1',
+        flexShrink: 0,
+        boxSizing: 'border-box',
       }}
     >
       {src && (
         <img
           src={src}
           alt=""
-          style={{ width: '100%', height: '100%', imageRendering: 'pixelated' }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            imageRendering: 'pixelated',
+            display: 'block',
+          }}
         />
       )}
     </div>
@@ -166,35 +174,126 @@ function Number_({
   );
 }
 
+/** Größe eines Elements in Pixeln (für Diagramme ohne verzerrte Schrift) */
+function useSize<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    if (!ref.current) return;
+    const ro = new ResizeObserver(([e]) => {
+      if (e) setSize({ w: e.contentRect.width, h: e.contentRect.height });
+    });
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, size] as const;
+}
+
+/** Abstand der Beschriftungen auf der X-Achse je nach Länge des Zeitraums */
+function tickStepMinutes(spanMinutes: number): number {
+  if (spanMinutes <= 3 * 60) return 30;
+  if (spanMinutes <= 10 * 60) return 60;
+  return 120;
+}
+
+/** Zeitverlauf als Linie mit Fläche, X-Achse mit Uhrzeiten, Y-Achse mit Höchstwert. */
 function Timeline({ data }: { data: DisplayStats['timeline'] }) {
+  const [ref, { w, h }] = useSize<HTMLDivElement>();
+  const font = Math.max(11, w * 0.034);
+  const pad = { l: font * 2.2, r: font * 1.7, t: font * 0.8, b: font * 1.9 };
+  const pw = Math.max(1, w - pad.l - pad.r);
+  const ph = Math.max(1, h - pad.t - pad.b);
+
+  const times = data.map((d) => dayjs(d.at).valueOf());
+  const t0 = times[0] ?? Date.now();
+  const t1 = Math.max(times[times.length - 1] ?? t0, t0 + DISPLAY_TIMELINE_MINUTES * 60_000);
   const max = Math.max(1, ...data.map((d) => d.scans));
-  const W = 100;
-  const H = 40;
-  const bw = W / Math.max(data.length, 1);
+  // runder Höchstwert für die Y-Achse
+  const yMax = max <= 4 ? max : Math.ceil(max / 4) * 4;
+  const x = (t: number) => pad.l + ((t - t0) / (t1 - t0)) * pw;
+  const y = (v: number) => pad.t + ph - (v / yMax) * ph;
+
+  const pts = data.map((d, i) => [x(times[i]!), y(d.scans)] as const);
+  const line = pts
+    .map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)},${py.toFixed(1)}`)
+    .join(' ');
+  const last = pts[pts.length - 1];
+  const area = last
+    ? `${line} L${last[0].toFixed(1)},${y(0)} L${pts[0]![0].toFixed(1)},${y(0)} Z`
+    : '';
+
+  // Beschriftung der X-Achse zu runden Uhrzeiten
+  const step = tickStepMinutes((t1 - t0) / 60_000);
+  const ticks: number[] = [];
+  let tick = dayjs(t0).startOf('hour');
+  while (tick.valueOf() < t0) tick = tick.add(step, 'minute');
+  for (; tick.valueOf() <= t1; tick = tick.add(step, 'minute')) ticks.push(tick.valueOf());
+
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      style={{ width: '100%', height: '100%' }}
-      preserveAspectRatio="none"
-    >
-      {data.map((d, i) => {
-        const h = (d.scans / max) * H;
-        const last = i === data.length - 1;
-        return (
-          <g key={d.at}>
-            <rect
-              x={i * bw + bw * 0.12}
-              y={H - h}
-              width={bw * 0.76}
-              height={Math.max(h, 0.4)}
-              rx={0.6}
-              fill={last ? C.accent : '#4b5563'}
+    <div ref={ref} style={{ width: '100%', height: '100%' }}>
+      {w > 0 && (
+        <svg width={w} height={h} style={{ display: 'block' }}>
+          <defs>
+            <linearGradient id="timeline-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={C.accent} stopOpacity={0.45} />
+              <stop offset="100%" stopColor={C.accent} stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          {/* Hilfslinien + Beschriftung der Y-Achse */}
+          {[0, yMax / 2, yMax].map((v) => (
+            <g key={v}>
+              <line
+                x1={pad.l}
+                x2={w - pad.r}
+                y1={y(v)}
+                y2={y(v)}
+                stroke="#374151"
+                strokeWidth={1}
+                strokeDasharray={v ? '4 4' : undefined}
+              />
+              {Number.isInteger(v) && (
+                <text
+                  x={pad.l - font * 0.4}
+                  y={y(v) + font * 0.35}
+                  fontSize={font}
+                  fill={C.muted}
+                  textAnchor="end"
+                >
+                  {v}
+                </text>
+              )}
+            </g>
+          ))}
+          {/* X-Achse mit Uhrzeiten */}
+          {ticks.map((t) => (
+            <g key={t}>
+              <line x1={x(t)} x2={x(t)} y1={y(0)} y2={y(0) + font * 0.4} stroke="#6b7280" />
+              <text
+                x={x(t)}
+                y={y(0) + font * 1.4}
+                fontSize={font}
+                fill={C.muted}
+                textAnchor="middle"
+              >
+                {dayjs(t).format('HH:mm')}
+              </text>
+            </g>
+          ))}
+          {area && <path d={area} fill="url(#timeline-area)" />}
+          {line && (
+            <path
+              d={line}
+              fill="none"
+              stroke={C.accent}
+              strokeWidth={Math.max(2, font * 0.2)}
+              strokeLinejoin="round"
+              strokeLinecap="round"
             />
-          </g>
-        );
-      })}
-      <line x1={0} y1={H} x2={W} y2={H} stroke="#374151" strokeWidth={0.3} />
-    </svg>
+          )}
+          {last && <circle cx={last[0]} cy={last[1]} r={font * 0.32} fill={C.accent} />}
+        </svg>
+      )}
+    </div>
   );
 }
 
@@ -253,29 +352,18 @@ export function StatsView({ stats }: { stats?: DisplayStats }) {
 
       <div style={{ ...card, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Bi
-          de={`Scans je ${DISPLAY_TIMELINE_MINUTES} min`}
-          en={`Scans per ${DISPLAY_TIMELINE_MINUTES} min`}
+          de="Scans im Zeitverlauf"
+          en={`Scans over time · je/per ${DISPLAY_TIMELINE_MINUTES} min`}
           size={3.6}
         />
         <div style={{ flex: 1, minHeight: 0, marginTop: vw(2) }}>
           <Timeline data={t} />
         </div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: vw(2.8),
-            color: C.muted,
-          }}
-        >
-          <span>{t[0] ? dayjs(t[0].at).format('HH:mm') : ''}</span>
-          {peak && peak.scans > 0 && (
-            <span>
-              Ansturm · Peak: {dayjs(peak.at).format('HH:mm')} ({peak.scans})
-            </span>
-          )}
-          <span>jetzt · now</span>
-        </div>
+        {peak && peak.scans > 0 && (
+          <div style={{ fontSize: vw(2.8), color: C.muted }}>
+            Ansturm · Peak: {dayjs(peak.at).format('HH:mm')} Uhr ({peak.scans} Scans)
+          </div>
+        )}
         <div style={{ fontSize: vw(2.8), color: C.muted, marginTop: vw(1) }}>
           {stats.scans} Scans gesamt · total{minors ? ` · ${minors} minderjährig · minors` : ''}
         </div>
@@ -293,7 +381,46 @@ function verdict(e: DisplayScanEvent) {
   return { bg: C.blue, de: 'NORMALER EINTRITT', en: 'REGULAR ENTRY' };
 }
 
-export function ScanView({ scan }: { scan: DisplayScanEvent | null }) {
+export type LastResult = { kind: 'scan'; scan: DisplayScanEvent } | { kind: 'next' };
+
+export function ScanView({ last }: { last: LastResult | null }) {
+  if (last?.kind === 'next') return <NextView />;
+  return <ScanResult scan={last?.scan ?? null} />;
+}
+
+/** Nach dem Wegtippen auf dem Handy: Aufforderung für die nächste Person */
+function NextView() {
+  return (
+    <div
+      style={{
+        height: '100%',
+        boxSizing: 'border-box',
+        borderRadius: vw(4),
+        background: C.card,
+        border: `${vw(0.8)} solid ${C.accent}`,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        gap: vw(5),
+      }}
+    >
+      <div style={{ fontSize: vw(22), lineHeight: 1 }}>👋</div>
+      <div>
+        <div style={{ fontSize: vw(11), fontWeight: 900 }}>Nächster bitte</div>
+        <div style={{ fontSize: vw(7), fontWeight: 700, color: C.muted }}>Next please</div>
+      </div>
+      <div style={{ fontSize: vw(4), color: C.muted }}>
+        Thoska bereithalten
+        <br />
+        Have your student ID ready
+      </div>
+    </div>
+  );
+}
+
+function ScanResult({ scan }: { scan: DisplayScanEvent | null }) {
   const now = useNow(5000);
   if (!scan) {
     return (

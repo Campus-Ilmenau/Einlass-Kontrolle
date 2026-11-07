@@ -78,6 +78,8 @@ export function ScanPage() {
   }, [hasEvent, mode, startCamera, stopCamera]);
 
   const next = () => {
+    // Ergebnis wurde weggetippt → Display am Pi zeigt "Nächster bitte" (Fehler sind egal)
+    if (mode === 'result') void api('/checks/next', { method: 'POST' }).catch(() => undefined);
     setResult(null);
     setManualInitial(null);
     scanner.reset();

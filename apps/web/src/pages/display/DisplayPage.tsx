@@ -1,7 +1,7 @@
 import type { DisplayScanEvent } from '@einlass/shared';
 import { type PointerEvent, type ReactNode, useCallback, useRef, useState } from 'react';
 import { useDisplayInfo, useDisplayStats, useDisplayToken, useLiveScans } from './useDisplayData';
-import { ScanView, StatsView, WelcomeView } from './views';
+import { type LastResult, ScanView, StatsView, WelcomeView } from './views';
 
 const PAGES = 3;
 /** Ab dieser Wischstrecke (px) wird die Seite gewechselt */
@@ -16,15 +16,17 @@ export function DisplayPage() {
   const info = useDisplayInfo(token);
   const stats = useDisplayStats(token);
   const [page, setPage] = useState(0);
-  const [lastScan, setLastScan] = useState<DisplayScanEvent | null>(null);
+  const [last, setLast] = useState<LastResult | null>(null);
   const [drag, setDrag] = useState(0);
   const start = useRef<{ x: number; y: number } | null>(null);
 
   const onScan = useCallback((e: DisplayScanEvent) => {
-    setLastScan(e);
+    setLast({ kind: 'scan', scan: e });
     setPage(2);
   }, []);
-  const live = useLiveScans(token, onScan);
+  // Ergebnis wurde auf dem Handy weggetippt → "Nächster bitte"
+  const onNext = useCallback(() => setLast({ kind: 'next' }), []);
+  const live = useLiveScans(token, onScan, onNext);
 
   const onPointerDown = (e: PointerEvent) => {
     start.current = { x: e.clientX, y: e.clientY };
@@ -90,7 +92,7 @@ export function DisplayPage() {
           <StatsView stats={stats.data} />
         </Page>
         <Page>
-          <ScanView scan={lastScan} />
+          <ScanView last={last} />
         </Page>
       </div>
 

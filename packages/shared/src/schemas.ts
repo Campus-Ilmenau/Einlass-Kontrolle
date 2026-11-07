@@ -362,3 +362,7 @@ export const DisplayScanEventSchema = z.object({
   alreadySeen: z.boolean(),
 });
 export type DisplayScanEvent = z.infer<typeof DisplayScanEventSchema>;
+
+/** Live-Ereignis: Kontrolleur:in hat das Ergebnis weggetippt → Display zeigt "Nächster bitte". */
+export const DisplayNextEventSchema = z.object({ at: InstantSchema });
+export type DisplayNextEvent = z.infer<typeof DisplayNextEventSchema>;
