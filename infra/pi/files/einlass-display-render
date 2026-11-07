@@ -78,12 +78,21 @@ cat >"$OUT/index.html.new" <<HTML
 HTML
 mv "$OUT/index.html.new" "$OUT/index.html"
 
+# Kiosk-Adresse: Display der Web-App (mit Token aus /opt/einlass/.env) oder statische Seite
+KIOSK_URL="file://$OUT/index.html"
+TOKEN=$(sed -n 's/^DISPLAY_TOKEN=//p' /opt/einlass/.env 2>/dev/null || true)
+if [ "${KIOSK_MODE:-app}" = app ] && [ -n "$TOKEN" ]; then
+  KIOSK_URL="https://${DOMAIN}/display?token=${TOKEN}"
+fi
+
 # Einstellungen für den Kiosk-Benutzer (config.env selbst ist nur für root lesbar)
 cat >/etc/einlass/kiosk.env.new <<ENV
 DISPLAY_OUTPUT=${DISPLAY_OUTPUT:-DSI-1}
 DISPLAY_TRANSFORM=${DISPLAY_TRANSFORM:-normal}
-KIOSK_URL=${KIOSK_URL:-file://$OUT/index.html}
+KIOSK_URL=${KIOSK_URL}
 ENV
-chmod 0644 /etc/einlass/kiosk.env.new
+# enthält das Display-Token → nur root und der Kiosk-Benutzer dürfen lesen
+chown root:kiosk /etc/einlass/kiosk.env.new
+chmod 0640 /etc/einlass/kiosk.env.new
 mv /etc/einlass/kiosk.env.new /etc/einlass/kiosk.env
 chmod 0644 "$OUT"/*

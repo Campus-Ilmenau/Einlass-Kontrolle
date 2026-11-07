@@ -107,7 +107,13 @@ Kanal: `EINLASS_VERSION` in `/opt/einlass/.env`: `main` (Entwicklungsstand) oder
 - Chromium-Richtlinien in `/etc/chromium/policies/managed/einlass-kiosk.json` (keine Übersetzungsleiste, kein Passwortmanager)
 - Screenshot zur Kontrolle (vom Pi aus):
   `sudo -u kiosk env XDG_RUNTIME_DIR=/run/user/$(id -u kiosk) WAYLAND_DISPLAY=wayland-0 grim -c /tmp/kiosk.png`
-- Später zeigt `KIOSK_URL` auf die `/display`-Seite der Web-App
+- **Display der Web-App** (`KIOSK_MODE=app`, Standard): `https://<DOMAIN>/display?token=…` mit drei wischbaren
+  Ansichten: ① QR-Codes für WLAN und App mit Uhr · ② Statistik mit Zeitverlauf · ③ letzter Scan (live, zweisprachig)
+- Das Token (`DISPLAY_TOKEN`) erzeugt der Schritt `app` in `/opt/einlass/.env`. `kiosk.env` ist nur für root und den
+  Kiosk-Benutzer lesbar
+- Das Zertifikat wird in der NSS-Datenbank des Kiosk-Benutzers als vertrauenswürdig hinterlegt (keine Warnung)
+- Beim Booten wartet der Kiosk bis zu 2 min auf die Seite. Danach zeigt er die statische Seite als Rückfallebene
+  (`KIOSK_MODE=static` erzwingt sie)
 
 ## Hinweise
 
