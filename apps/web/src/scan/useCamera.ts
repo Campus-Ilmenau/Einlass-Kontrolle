@@ -69,16 +69,26 @@ export function useCamera() {
     }
   }, []);
 
-  const toggleTorch = useCallback(async () => {
+  /**
+   * Licht (Taschenlampe der Rückkamera) umschalten. Gibt `false` zurück, wenn Gerät oder Browser
+   * das nicht unterstützen. Manche Browser ignorieren die Anfrage stillschweigend – deshalb wird
+   * danach in den Einstellungen der Kamera nachgesehen.
+   */
+  const toggleTorch = useCallback(async (): Promise<boolean> => {
     const track = streamRef.current?.getVideoTracks()[0];
-    if (!track || state.status !== 'running') return;
+    if (!track || state.status !== 'running') return false;
     const next = !state.torchOn;
     try {
       await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
-      setState({ ...state, torchOn: next });
     } catch {
-      /* Licht nicht schaltbar */
+      return false;
     }
+    const settings = track.getSettings() as MediaTrackSettings & { torch?: boolean };
+    const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { torch?: boolean };
+    const applied = settings.torch === undefined ? !!caps.torch : settings.torch === next;
+    if (!applied) return false;
+    setState({ ...state, torch: true, torchOn: next });
+    return true;
   }, [state]);
 
   useEffect(() => stop, [stop]);
