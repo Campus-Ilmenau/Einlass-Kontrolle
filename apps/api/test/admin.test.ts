@@ -307,6 +307,40 @@ describe('Freilisten', () => {
   });
 });
 
+describe('Freilisten ↔ Veranstaltungen', () => {
+  it('Liste zeigt, in welchen laufenden/geplanten Veranstaltungen sie verwendet wird', async () => {
+    const at = (h: number) => new Date(clock.now().getTime() + h * HOUR).toISOString();
+    const used = (await call('POST', '/lists', { name: 'Benutzt' })).json();
+    const unused = (await call('POST', '/lists', { name: 'Unbenutzt' })).json();
+    await call('POST', '/events', {
+      name: 'Läuft',
+      startsAt: at(-1),
+      endsAt: at(3),
+      listIds: [used.id],
+    });
+    await call('POST', '/events', {
+      name: 'Später',
+      startsAt: at(24),
+      endsAt: at(30),
+      listIds: [used.id],
+    });
+    await call('POST', '/events', {
+      name: 'Vorbei',
+      startsAt: at(-48),
+      endsAt: at(-40),
+      listIds: [unused.id],
+    });
+
+    const lists = (await call('GET', '/lists')).json() as { name: string; events: unknown[] }[];
+    expect(lists.find((l) => l.name === 'Benutzt')!.events).toEqual([
+      expect.objectContaining({ name: 'Läuft', status: 'ACTIVE' }),
+      expect.objectContaining({ name: 'Später', status: 'PLANNED' }),
+    ]);
+    // Vergangene Veranstaltungen zählen nicht
+    expect(lists.find((l) => l.name === 'Unbenutzt')!.events).toEqual([]);
+  });
+});
+
 describe('Veranstaltungen', () => {
   const at = (h: number) => new Date(clock.now().getTime() + h * HOUR).toISOString();
 
