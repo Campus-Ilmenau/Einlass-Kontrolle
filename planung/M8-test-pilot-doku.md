@@ -15,7 +15,7 @@
 - [ ] Probleme als Issues erfassen und priorisieren
 
 ## Aufgabe 8.3 – Dokumentation
-- [ ] **Kurzanleitung Kontrolleur:in** (1 Seite, laminierbar): WLAN verbinden, Login, Scannen, Fehlerbehebung
+- [x] **Kurzanleitung Kontrolleur:in** (1 Seite, laminierbar): WLAN verbinden, Login, Scannen, Fehlerbehebung, deutsch und englisch ([docs/anleitung](../docs/anleitung/))
 - [ ] **Admin-Handbuch**: Vorbereitung (Ethernet, Update prüfen, Listen, Veranstaltung, Accounts, herunterfahren)
 - [ ] **Checkliste Aufbau am Abend** (1 Seite): Strom an → Uhrzeit prüfen → Veranstaltung „geplant/aktiv“? → Kontrolleur:innen einloggen
 - [ ] **Technik-Doku**: Pi aufsetzen, Update, Backup, Zertifikat erneuern
