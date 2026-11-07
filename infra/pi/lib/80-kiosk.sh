@@ -28,7 +28,9 @@ step_kiosk() {
     install -d -o kiosk -g kiosk -m 0700 /var/lib/einlass-kiosk/.pki "$nssdb"
     [ -f "$nssdb/cert9.db" ] || sudo -u kiosk certutil -d "sql:$nssdb" -N --empty-password
     sudo -u kiosk certutil -d "sql:$nssdb" -D -n einlass 2>/dev/null || true
-    sudo -u kiosk certutil -d "sql:$nssdb" -A -n einlass -t "P,," -i "$EINLASS_ETC/tls/cert.pem"
+    # Zertifikat per stdin übergeben – /etc/einlass/tls ist nur für root lesbar
+    # shellcheck disable=SC2024  # die Umleitung soll als root laufen
+    sudo -u kiosk certutil -d "sql:$nssdb" -A -n einlass -t "P,," -a -i /dev/stdin <"$EINLASS_ETC/tls/cert.pem"
   fi
 
   install -m 0755 "$files/einlass-kiosk" /usr/local/bin/einlass-kiosk
