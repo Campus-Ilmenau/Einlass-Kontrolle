@@ -320,3 +320,45 @@ export const DisplayStatusSchema = z.object({
   persons: z.number().int(),
 });
 export type DisplayStatus = z.infer<typeof DisplayStatusSchema>;
+
+// ─── Display am Pi (Touch-Display, per Token geschützt) ────────────────────
+
+export const DisplayEventSchema = z.object({
+  name: z.string(),
+  startsAt: InstantSchema,
+  endsAt: InstantSchema,
+});
+
+export const DisplayInfoSchema = z.object({
+  serverTime: InstantSchema,
+  appUrl: z.string(),
+  wifi: z.object({ ssid: z.string(), password: z.string() }).nullable(),
+  event: DisplayEventSchema.nullable(),
+});
+export type DisplayInfo = z.infer<typeof DisplayInfoSchema>;
+
+/** Länge eines Balkens im Zeitverlauf */
+export const DISPLAY_TIMELINE_MINUTES = 15;
+
+export const DisplayStatsSchema = z.object({
+  event: DisplayEventSchema.nullable(),
+  persons: z.number().int(),
+  scans: z.number().int(),
+  freePersons: z.number().int(),
+  perList: z.array(z.object({ name: z.string(), persons: z.number().int() })),
+  ageGroups: z.object({ U16: z.number().int(), U18: z.number().int(), ADULT: z.number().int() }),
+  /** Scans je Zeitabschnitt seit Beginn der Veranstaltung (lückenlos) */
+  timeline: z.array(z.object({ at: InstantSchema, scans: z.number().int() })),
+});
+export type DisplayStats = z.infer<typeof DisplayStatsSchema>;
+
+/** Live-Ereignis für das Display nach einem Scan (ohne Matrikelnummer und Geburtsdatum). */
+export const DisplayScanEventSchema = z.object({
+  at: InstantSchema,
+  isFree: z.boolean(),
+  lists: z.array(z.string()),
+  age: z.number().int(),
+  ageGroup: AgeGroupSchema,
+  alreadySeen: z.boolean(),
+});
+export type DisplayScanEvent = z.infer<typeof DisplayScanEventSchema>;
