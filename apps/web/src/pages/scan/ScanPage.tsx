@@ -259,13 +259,20 @@ export function ScanPage() {
               >
                 Manuell eingeben
               </Button>
-              {camera.state.status === 'running' && camera.state.torch && (
+              {camera.state.status === 'running' && (
                 <Button
                   size="large"
-                  aria-label="Licht"
+                  type={camera.state.torchOn ? 'primary' : 'default'}
                   icon={camera.state.torchOn ? <BulbFilled /> : <BulbOutlined />}
-                  onClick={() => void camera.toggleTorch()}
-                />
+                  aria-pressed={camera.state.torchOn}
+                  onClick={async () => {
+                    const ok = await camera.toggleTorch();
+                    if (!ok)
+                      message.warning('Licht wird von diesem Gerät bzw. Browser nicht unterstützt');
+                  }}
+                >
+                  {camera.state.torchOn ? 'Licht aus' : 'Licht an'}
+                </Button>
               )}
             </Flex>
           </Flex>
