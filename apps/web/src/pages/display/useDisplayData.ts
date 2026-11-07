@@ -1,4 +1,9 @@
-import type { DisplayInfo, DisplayScanEvent, DisplayStats } from '@einlass/shared';
+import type {
+  DisplayInfo,
+  DisplayNextEvent,
+  DisplayScanEvent,
+  DisplayStats,
+} from '@einlass/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { api, ApiRequestError } from '../../api/client';
@@ -37,7 +42,11 @@ export function useDisplayStats(token: string) {
  * Live-Scans per Server-Sent Events. EventSource verbindet sich bei Abbrüchen selbst neu.
  * Nach jedem Scan wird die Statistik sofort neu geladen.
  */
-export function useLiveScans(token: string, onScan: (e: DisplayScanEvent) => void) {
+export function useLiveScans(
+  token: string,
+  onScan: (e: DisplayScanEvent) => void,
+  onNext: (e: DisplayNextEvent) => void,
+) {
   const queryClient = useQueryClient();
   const [connected, setConnected] = useState(false);
 
@@ -50,8 +59,11 @@ export function useLiveScans(token: string, onScan: (e: DisplayScanEvent) => voi
       onScan(JSON.parse((msg as MessageEvent<string>).data) as DisplayScanEvent);
       void queryClient.invalidateQueries({ queryKey: ['display', 'stats'] });
     });
+    source.addEventListener('next', (msg) => {
+      onNext(JSON.parse((msg as MessageEvent<string>).data) as DisplayNextEvent);
+    });
     return () => source.close();
-  }, [token, onScan, queryClient]);
+  }, [token, onScan, onNext, queryClient]);
 
   return connected;
 }
