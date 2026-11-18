@@ -464,7 +464,9 @@ function ScanResult({ scan }: { scan: DisplayScanEvent | null }) {
         <div style={{ fontSize: vw(11), fontWeight: 900, lineHeight: 1.05 }}>{v.de}</div>
         <div style={{ fontSize: vw(6.5), fontWeight: 700, opacity: 0.85 }}>{v.en}</div>
       </div>
-      <div style={{ fontSize: vw(8), fontWeight: 700 }}>{scan.age} Jahre · years</div>
+      <div style={{ fontSize: vw(8), fontWeight: 700 }}>
+        {scan.ageGroup === 'ADULT' ? 'Ü18 · over 18' : 'U18 · under 18'}
+      </div>
       {scan.ageGroup !== 'ADULT' && scan.isFree && (
         <div style={{ fontSize: vw(4.5), fontWeight: 600 }}>Freier Eintritt · Free entry</div>
       )}
