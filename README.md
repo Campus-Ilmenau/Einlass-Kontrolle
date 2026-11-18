@@ -13,6 +13,7 @@ damit per Smartphone-Kamera die Thoska+ der Gäste und sehen sofort:
 
 - [Konzept](konzept/README.md): was das System tut und wie es aufgebaut ist
 - [Planung](planung/README.md): Milestones, Aufgaben, Unteraufgaben
+- Kurzanleitung für die Kontrolle: [Deutsch](docs/anleitung/kurzanleitung-kontrolle.de.md) · [English](docs/anleitung/quick-guide-door-staff.en.md)
 
 ## Repository-Struktur
 
