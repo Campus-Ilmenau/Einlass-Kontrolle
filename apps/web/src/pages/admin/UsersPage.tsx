@@ -250,11 +250,7 @@ export function UsersPage() {
                   onClick={() => unlock.mutate(u.id)}
                 />
               )}
-              <Button
-                icon={<EditOutlined />}
-                aria-label="Bearbeiten"
-                onClick={() => openForm(u)}
-              />
+              <Button icon={<EditOutlined />} aria-label="Bearbeiten" onClick={() => openForm(u)} />
               {u.id !== me?.id && (
                 <Popconfirm
                   title={`${u.name} löschen?`}
