@@ -356,12 +356,12 @@ export const DisplayStatsSchema = z.object({
 });
 export type DisplayStats = z.infer<typeof DisplayStatsSchema>;
 
-/** Live-Ereignis für das Display nach einem Scan (ohne Matrikelnummer und Geburtsdatum). */
+/** Live-Ereignis für das Display nach einem Scan (ohne Matrikelnummer, Geburtsdatum und Alter). */
 export const DisplayScanEventSchema = z.object({
   at: InstantSchema,
   isFree: z.boolean(),
   lists: z.array(z.string()),
-  age: z.number().int(),
+  /** Nur die Altersgruppe – das genaue Alter wird bewusst nicht angezeigt */
   ageGroup: AgeGroupSchema,
   alreadySeen: z.boolean(),
 });

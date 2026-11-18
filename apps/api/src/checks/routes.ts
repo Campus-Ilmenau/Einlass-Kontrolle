@@ -86,12 +86,11 @@ export const checkRoutes: FastifyPluginAsyncZod = async (app) => {
         createdAt: now,
       });
 
-      // Live auf dem Display am Pi zeigen (ohne Matrikelnummer und Geburtsdatum)
+      // Live auf dem Display am Pi zeigen (ohne Matrikelnummer, Geburtsdatum und Alter)
       app.displayBus.publish({
         at: now.toISOString(),
         isFree: matchedLists.length > 0,
         lists: matchedLists.map((l) => l.name),
-        age,
         ageGroup,
         alreadySeen: first !== null,
       });

@@ -165,7 +165,7 @@ describe('Nächster bitte', () => {
 });
 
 describe('Live-Ereignis nach einem Scan', () => {
-  it('wird ohne Matrikelnummer und Geburtsdatum veröffentlicht', async () => {
+  it('wird ohne Matrikelnummer, Geburtsdatum und Alter veröffentlicht', async () => {
     await setupEvent();
     const events: DisplayScanEvent[] = [];
     const unsubscribe = app.displayBus.subscribe((e) => events.push(e));
@@ -182,6 +182,7 @@ describe('Live-Ereignis nach einem Scan', () => {
       alreadySeen: false,
     });
     expect(events[1]!.alreadySeen).toBe(true);
+    expect(events[0]).not.toHaveProperty('age');
     const json = JSON.stringify(events);
     expect(json).not.toContain('53902');
     expect(json).not.toContain('1994');
