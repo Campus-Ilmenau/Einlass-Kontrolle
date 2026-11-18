@@ -29,6 +29,7 @@ import { api } from '../../api/client';
 import { useApiMutation } from '../../lib/mutation';
 import { LISTS_KEY } from './EventsPage';
 import { ListFormModal } from './ListsPage';
+import { ListEventTags, useAssignToActiveEvent } from './listEvents';
 
 const PAGE_SIZE = 50;
 
@@ -166,6 +167,7 @@ export function ListDetailPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [renaming, setRenaming] = useState(false);
+  const { active, assign, pending: assigning } = useAssignToActiveEvent();
 
   const lists = useQuery({ queryKey: LISTS_KEY, queryFn: () => api<FreeList[]>('/admin/lists') });
   const list = lists.data?.find((l) => l.id === id);
@@ -234,6 +236,39 @@ export function ListDetailPage() {
           </Popconfirm>
         </Flex>
       </Flex>
+
+      <Flex gap={4} wrap>
+        <ListEventTags list={list} />
+      </Flex>
+
+      {/* Ohne Zuordnung zur laufenden Veranstaltung zählt die Liste beim Scannen nicht */}
+      {active && !list.events.some((e) => e.id === active.id) && (
+        <Alert
+          type="warning"
+          showIcon
+          message={`Nicht in der laufenden Veranstaltung „${active.name}“`}
+          description="Nummern auf dieser Liste bekommen dort keinen freien Eintritt."
+          action={
+            <Button size="small" type="primary" loading={assigning} onClick={() => void assign(id)}>
+              Zuordnen
+            </Button>
+          }
+        />
+      )}
+      {!active && list.events.length === 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Keiner Veranstaltung zugeordnet"
+          description={
+            <>
+              Nummern auf dieser Liste bekommen erst freien Eintritt, wenn die Liste einer
+              Veranstaltung zugeordnet ist (Abende → Bearbeiten → Freilisten).{' '}
+              <a onClick={() => navigate('/admin/events')}>Zu den Abenden</a>
+            </>
+          }
+        />
+      )}
 
       <Collapse
         items={[

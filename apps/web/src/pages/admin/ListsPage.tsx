@@ -1,12 +1,13 @@
 import { PlusOutlined, RightOutlined } from '@ant-design/icons';
 import type { FreeList, FreeListRequest } from '@einlass/shared';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Card, Empty, Flex, Form, Input, Modal, Spin, Typography } from 'antd';
+import { Button, Card, Checkbox, Empty, Flex, Form, Input, Modal, Spin, Typography } from 'antd';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '../../api/client';
 import { useApiMutation } from '../../lib/mutation';
 import { LISTS_KEY } from './EventsPage';
+import { ListEventTags, useAssignToActiveEvent } from './listEvents';
 
 export function ListFormModal({
   open,
@@ -17,12 +18,13 @@ export function ListFormModal({
   list?: FreeList | null;
   onClose: (created?: FreeList) => void;
 }) {
-  const [form] = Form.useForm<FreeListRequest>();
+  const [form] = Form.useForm<FreeListRequest & { assign?: boolean }>();
+  const { active, assign } = useAssignToActiveEvent();
   const save = useApiMutation(
-    (v: FreeListRequest) =>
+    ({ name, description }: FreeListRequest) =>
       list
-        ? api<FreeList>(`/admin/lists/${list.id}`, { method: 'PATCH', body: v })
-        : api<FreeList>('/admin/lists', { method: 'POST', body: v }),
+        ? api<FreeList>(`/admin/lists/${list.id}`, { method: 'PATCH', body: { name, description } })
+        : api<FreeList>('/admin/lists', { method: 'POST', body: { name, description } }),
     { invalidate: [LISTS_KEY], success: list ? 'Gespeichert' : 'Liste angelegt' },
   );
   return (
@@ -36,14 +38,19 @@ export function ListFormModal({
       onCancel={() => onClose()}
       onOk={async () => {
         const values = await form.validateFields();
-        onClose(await save.mutateAsync(values));
+        const saved = await save.mutateAsync(values);
+        // Neue Liste direkt der laufenden Veranstaltung zuordnen (sonst zählt sie heute nicht)
+        if (!list && values.assign && active) await assign(saved.id).catch(() => undefined);
+        onClose(saved);
       }}
     >
-      <Form<FreeListRequest>
+      <Form<FreeListRequest & { assign?: boolean }>
         form={form}
         layout="vertical"
         preserve={false}
-        initialValues={list ? { name: list.name, description: list.description ?? '' } : {}}
+        initialValues={
+          list ? { name: list.name, description: list.description ?? '' } : { assign: true }
+        }
       >
         <Form.Item name="name" label="Name" rules={[{ required: true, max: 100 }]}>
           <Input placeholder="z. B. Fachschaft EI" />
@@ -51,6 +58,11 @@ export function ListFormModal({
         <Form.Item name="description" label="Beschreibung (optional)" rules={[{ max: 500 }]}>
           <Input.TextArea autoSize={{ minRows: 2 }} />
         </Form.Item>
+        {!list && active && (
+          <Form.Item name="assign" valuePropName="checked" style={{ marginBottom: 0 }}>
+            <Checkbox>Der laufenden Veranstaltung „{active.name}“ zuordnen</Checkbox>
+          </Form.Item>
+        )}
       </Form>
     </Modal>
   );
@@ -79,6 +91,9 @@ export function ListsPage() {
                 {l.entryCount} {l.entryCount === 1 ? 'Nummer' : 'Nummern'}
                 {l.description ? ` · ${l.description}` : ''}
               </Typography.Text>
+              <Flex gap={4} wrap style={{ marginTop: 4 }}>
+                <ListEventTags list={l} />
+              </Flex>
             </Flex>
             <RightOutlined />
           </Flex>

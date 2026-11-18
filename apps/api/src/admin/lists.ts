@@ -35,11 +35,12 @@ interface ListRow {
   updated_at: Date;
 }
 
-const toDto = (r: ListRow): FreeList => ({
+const toDto = (r: ListRow, events: FreeList['events'] = []): FreeList => ({
   id: r.id,
   name: r.name,
   description: r.description,
   entryCount: Number(r.entry_count),
+  events,
   createdAt: r.created_at.toISOString(),
   updatedAt: r.updated_at.toISOString(),
 });
@@ -64,10 +65,29 @@ async function insertEntries(em: EntityManager, listId: string, values: string[]
 export const adminListRoutes: FastifyPluginAsyncZod = async (app) => {
   const ds = () => app.dataSource;
 
+  /** Laufende und geplante Veranstaltungen je Liste (für Hinweise in der Oberfläche) */
+  const eventsByList = async (listIds: string[]) => {
+    const map = new Map<string, FreeList['events']>();
+    if (listIds.length === 0) return map;
+    const rows: { list_id: string; id: string; name: string; active: boolean }[] = await ds().query(
+      `SELECT efl.list_id, e.id, e.name, e.starts_at <= $2 AS active
+       FROM event_free_lists efl JOIN events e ON e.id = efl.event_id
+       WHERE efl.list_id = ANY($1::uuid[]) AND e.ends_at > $2
+       ORDER BY e.starts_at`,
+      [listIds, app.now()],
+    );
+    for (const r of rows) {
+      const list = map.get(r.list_id) ?? [];
+      list.push({ id: r.id, name: r.name, status: r.active ? 'ACTIVE' : 'PLANNED' });
+      map.set(r.list_id, list);
+    }
+    return map;
+  };
+
   const loadDto = async (id: string) => {
     const rows: ListRow[] = await ds().query(`${LIST_QUERY} WHERE l.id = $1 GROUP BY l.id`, [id]);
     if (!rows[0]) throw notFound('Liste');
-    return toDto(rows[0]);
+    return toDto(rows[0], (await eventsByList([id])).get(id));
   };
 
   const ensureExists = async (id: string) => {
@@ -76,7 +96,8 @@ export const adminListRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.get('/', { schema: { response: { 200: z.array(FreeListSchema) } } }, async () => {
     const rows: ListRow[] = await ds().query(`${LIST_QUERY} GROUP BY l.id ORDER BY l.name`);
-    return rows.map(toDto);
+    const events = await eventsByList(rows.map((r) => r.id));
+    return rows.map((r) => toDto(r, events.get(r.id)));
   });
 
   app.post(
