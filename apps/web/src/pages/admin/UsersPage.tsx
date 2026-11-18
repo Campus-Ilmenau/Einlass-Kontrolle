@@ -195,6 +195,14 @@ export function UsersPage() {
   const users = useQuery({ queryKey: KEY, queryFn: () => api<AdminUser[]>('/admin/users') });
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [creating, setCreating] = useState(false);
+  // Neuer Key je Öffnen → frisches Formular. Sonst behält antd die Werte der
+  // vorherigen Öffnung (z. B. leerer Name / zufälliges Passwort aus "Anlegen").
+  const [formKey, setFormKey] = useState(0);
+  const openForm = (u: AdminUser | null) => {
+    setFormKey((k) => k + 1);
+    if (u) setEditing(u);
+    else setCreating(true);
+  };
 
   const unlock = useApiMutation(
     (id: string) => api(`/admin/users/${id}`, { method: 'PATCH', body: { unlock: true } }),
@@ -207,7 +215,7 @@ export function UsersPage() {
 
   return (
     <Flex vertical gap={12}>
-      <Button type="primary" icon={<PlusOutlined />} size="large" onClick={() => setCreating(true)}>
+      <Button type="primary" icon={<PlusOutlined />} size="large" onClick={() => openForm(null)}>
         Person anlegen
       </Button>
 
@@ -242,11 +250,7 @@ export function UsersPage() {
                   onClick={() => unlock.mutate(u.id)}
                 />
               )}
-              <Button
-                icon={<EditOutlined />}
-                aria-label="Bearbeiten"
-                onClick={() => setEditing(u)}
-              />
+              <Button icon={<EditOutlined />} aria-label="Bearbeiten" onClick={() => openForm(u)} />
               {u.id !== me?.id && (
                 <Popconfirm
                   title={`${u.name} löschen?`}
@@ -264,6 +268,7 @@ export function UsersPage() {
       ))}
 
       <UserForm
+        key={formKey}
         open={creating || editing !== null}
         user={editing}
         onClose={() => {
