@@ -18,6 +18,21 @@ TimeoutStartSec=20min
 Nice=10
 UNIT
 
+  # Aus dem Admin-Panel "trotzdem aktualisieren" (über einlass-hostd, auch während einer Veranstaltung)
+  write_if_changed /etc/systemd/system/einlass-update-force.service <<'UNIT' || true
+[Unit]
+Description=Einlass-Kontrolle: Docker-Images aktualisieren (auch während einer Veranstaltung)
+After=network-online.target docker.service einlass-hostd.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/einlass-update --force
+TimeoutStartSec=20min
+Nice=10
+UNIT
+
   write_if_changed /etc/systemd/system/einlass-update.timer <<'UNIT' || true
 [Unit]
 Description=Einlass-Kontrolle: regelmäßig nach Updates sehen

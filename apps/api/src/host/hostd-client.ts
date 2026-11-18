@@ -20,6 +20,14 @@ export interface HostSetTimeResult {
   rtcWritten: boolean;
 }
 
+/** Status von einlass-update, wie ihn einlass-hostd liefert. */
+export interface HostUpdateStatus {
+  running: boolean;
+  lastRun: string | null;
+  result: string | null;
+  message: string | null;
+}
+
 /** Zugriff auf Host-Funktionen, die der Container selbst nicht ausführen darf. */
 export interface HostClient {
   readonly available: boolean;
@@ -27,12 +35,22 @@ export interface HostClient {
   setTime(time: Date, source: string): Promise<HostSetTimeResult>;
   shutdown(): Promise<void>;
   reboot(): Promise<void>;
+  getUpdate(): Promise<HostUpdateStatus>;
+  /** Startet einlass-update im Hintergrund. Wirft UpdateRunningError, wenn bereits eins läuft. */
+  startUpdate(force: boolean): Promise<void>;
 }
 
 export class HostUnavailableError extends Error {
   constructor(message = 'Host-Dienst nicht erreichbar') {
     super(message);
     this.name = 'HostUnavailableError';
+  }
+}
+
+export class UpdateRunningError extends Error {
+  constructor() {
+    super('Update läuft bereits');
+    this.name = 'UpdateRunningError';
   }
 }
 
@@ -72,6 +90,7 @@ export class UnixSocketHostClient implements HostClient {
               return;
             }
             if (status >= 200 && status < 300) resolve(parsed as T);
+            else if (status === 409 && path === '/update') reject(new UpdateRunningError());
             else reject(new HostUnavailableError(`hostd ${method} ${path} → ${status}: ${data}`));
           });
         },
@@ -102,6 +121,14 @@ export class UnixSocketHostClient implements HostClient {
   async reboot() {
     await this.call('POST', '/reboot');
   }
+
+  getUpdate() {
+    return this.call<HostUpdateStatus>('GET', '/update');
+  }
+
+  async startUpdate(force: boolean) {
+    await this.call('POST', '/update', { force });
+  }
 }
 
 /** Ersatz in der Entwicklung (kein Pi): verändert nichts, meldet "nicht verfügbar". */
@@ -121,6 +148,14 @@ export class NoopHostClient implements HostClient {
   }
 
   async reboot() {
+    throw new HostUnavailableError('Kein Host-Dienst (Entwicklungsmodus)');
+  }
+
+  async getUpdate(): Promise<HostUpdateStatus> {
+    throw new HostUnavailableError('Kein Host-Dienst (Entwicklungsmodus)');
+  }
+
+  async startUpdate() {
     throw new HostUnavailableError('Kein Host-Dienst (Entwicklungsmodus)');
   }
 }

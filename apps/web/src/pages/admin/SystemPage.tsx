@@ -1,5 +1,16 @@
-import { ClockCircleOutlined, PoweroffOutlined, ReloadOutlined } from '@ant-design/icons';
-import type { Settings, SystemTime, TimeSyncLogEntry } from '@einlass/shared';
+import {
+  ClockCircleOutlined,
+  CloudDownloadOutlined,
+  PoweroffOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
+import type {
+  Settings,
+  SystemTime,
+  SystemUpdate,
+  TimeSyncLogEntry,
+  UpdateResult,
+} from '@einlass/shared';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
@@ -22,6 +33,7 @@ import { useApiMutation } from '../../lib/mutation';
 const TIME_KEY = ['admin', 'system', 'time'];
 const LOG_KEY = ['admin', 'system', 'time-log'];
 const SETTINGS_KEY = ['admin', 'settings'];
+const UPDATE_KEY = ['admin', 'system', 'update'];
 
 const SOURCE: Record<TimeSyncLogEntry['source'], string> = {
   LOGIN: 'Anmeldung',
@@ -206,6 +218,139 @@ function SettingsCard() {
   );
 }
 
+const UPDATE_RESULT: Record<UpdateResult, { color: string; label: string }> = {
+  current: { color: 'green', label: 'aktuell' },
+  updated: { color: 'green', label: 'aktualisiert' },
+  skipped: { color: 'orange', label: 'verschoben' },
+  'rolled-back': { color: 'red', label: 'zurückgerollt' },
+  failed: { color: 'red', label: 'fehlgeschlagen' },
+  offline: { color: 'default', label: 'kein Internet' },
+};
+
+/** Neueste Version (Stand main) aus dem Repository holen: Images ziehen, Backup, Neustart */
+function UpdateCard() {
+  // Nach dem Start: schneller abfragen, bis das Update durch ist (API startet dabei kurz neu)
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const update = useQuery({
+    queryKey: UPDATE_KEY,
+    queryFn: () => api<SystemUpdate>('/admin/system/update'),
+    refetchInterval: (q) => (startedAt || q.state.data?.running ? 3000 : 30_000),
+    retry: false,
+  });
+  const u = update.data;
+  const finished =
+    startedAt !== null &&
+    u !== undefined &&
+    !u.running &&
+    u.lastRun !== null &&
+    dayjs(u.lastRun).valueOf() >= startedAt - 5000;
+  useEffect(() => {
+    if (finished) setStartedAt(null);
+  }, [finished]);
+  // Läuft länger als 20 min → nicht mehr warten
+  useEffect(() => {
+    if (startedAt === null) return;
+    const t = setTimeout(() => setStartedAt(null), 20 * 60_000);
+    return () => clearTimeout(t);
+  }, [startedAt]);
+
+  const start = useApiMutation(
+    (force: boolean) =>
+      api<SystemUpdate>('/admin/system/update', { method: 'POST', body: { force } }),
+    { invalidate: [UPDATE_KEY], success: 'Update gestartet' },
+  );
+  const run = (force: boolean) =>
+    start.mutate(force, { onSuccess: () => setStartedAt(Date.now()) });
+
+  const running = startedAt !== null || (u?.running ?? false);
+  const result = u?.result ? UPDATE_RESULT[u.result] : null;
+
+  return (
+    <Card
+      size="small"
+      title={
+        <>
+          <CloudDownloadOutlined /> App-Update
+        </>
+      }
+    >
+      <Typography.Paragraph type="secondary">
+        Holt den neuesten Stand (main) aus dem Repository. Vorher wird die Datenbank gesichert;
+        startet die neue Version nicht, wird automatisch die alte wiederhergestellt.
+      </Typography.Paragraph>
+      <Descriptions
+        column={1}
+        size="small"
+        items={[
+          { label: 'Letzte Prüfung', children: u?.lastRun ? fmtDateTime(u.lastRun) : '–' },
+          {
+            label: 'Ergebnis',
+            children: result ? <Tag color={result.color}>{result.label}</Tag> : '–',
+          },
+          ...(u?.message ? [{ label: 'Meldung', children: u.message }] : []),
+        ]}
+      />
+      {u && !u.hostd && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Host-Dienst nicht erreichbar – Update nur direkt auf dem Pi möglich"
+        />
+      )}
+      {running && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginTop: 8 }}
+          message="Update läuft …"
+          description="Das kann einige Minuten dauern. Die App ist dabei kurz nicht erreichbar."
+        />
+      )}
+      {!running && u?.result === 'updated' && (
+        <Alert
+          type="success"
+          showIcon
+          style={{ marginTop: 8 }}
+          message="Neue Version installiert"
+          action={
+            <Button size="small" onClick={() => window.location.reload()}>
+              Seite neu laden
+            </Button>
+          }
+        />
+      )}
+      <Popconfirm
+        title={
+          u?.eventActive
+            ? 'Veranstaltung läuft – trotzdem aktualisieren?'
+            : 'App jetzt aktualisieren?'
+        }
+        description={
+          u?.eventActive
+            ? 'Der Einlass ist während des Neustarts ca. 1–2 Minuten nicht möglich.'
+            : 'Die App ist während des Neustarts kurz nicht erreichbar.'
+        }
+        okText="Aktualisieren"
+        cancelText="Abbrechen"
+        okButtonProps={{ danger: u?.eventActive }}
+        onConfirm={() => run(u?.eventActive ?? false)}
+        disabled={!u?.hostd || running}
+      >
+        <Button
+          type="primary"
+          block
+          icon={<CloudDownloadOutlined />}
+          style={{ marginTop: 12 }}
+          loading={start.isPending || running}
+          disabled={!u?.hostd}
+        >
+          {running ? 'Update läuft …' : 'Jetzt aktualisieren'}
+        </Button>
+      </Popconfirm>
+    </Card>
+  );
+}
+
 function PowerCard() {
   const shutdown = useApiMutation(() => api('/admin/system/shutdown', { method: 'POST' }), {
     success: 'Pi fährt herunter – in ca. 30 s kann der Strom getrennt werden',
@@ -248,6 +393,7 @@ export function SystemPage() {
     <Flex vertical gap={12}>
       <TimeCard />
       <SettingsCard />
+      <UpdateCard />
       <PowerCard />
       <TimeLogCard />
     </Flex>

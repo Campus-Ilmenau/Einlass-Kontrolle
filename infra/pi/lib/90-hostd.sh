@@ -14,7 +14,7 @@ step_hostd() {
 
   write_if_changed /etc/systemd/system/einlass-hostd.service <<'UNIT' || true
 [Unit]
-Description=Einlass-Kontrolle: Host-Dienst (Zeit, RTC, Herunterfahren)
+Description=Einlass-Kontrolle: Host-Dienst (Zeit, RTC, Herunterfahren, Update starten)
 After=time-set.target systemd-timesyncd.service
 Before=docker.service einlass-kiosk.service
 

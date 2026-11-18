@@ -8,6 +8,7 @@
 # Ausgelöst durch: systemd-Timer (alle 15 min), Netzwerk-Hook (eth0 up), oder manuell:
 #   sudo systemctl start einlass-update     (Log: journalctl -u einlass-update)
 #   sudo einlass-update --force             (auch während einer Veranstaltung)
+#   Admin-Panel → System → "Jetzt aktualisieren" (über einlass-hostd)
 set -euo pipefail
 
 APP_DIR=/opt/einlass
@@ -75,7 +76,7 @@ VERSION=$(. "$APP_DIR/.env" 2>/dev/null && echo "${EINLASS_VERSION:-main}")
 # ─── 1. Internet? ──────────────────────────────────────────────────────────
 code=$(curl -s -o /dev/null -m 10 -w '%{http_code}' https://ghcr.io/v2/ || true)
 if [ "$code" = "000" ]; then
-  log "kein Internet – nichts zu tun"
+  write_status offline "Kein Internet – Update nicht möglich"
   exit 0
 fi
 

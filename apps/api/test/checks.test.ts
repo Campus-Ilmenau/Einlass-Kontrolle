@@ -296,6 +296,54 @@ describe('System (Admin)', () => {
     expect(log[0]).toMatchObject({ source: 'ADMIN', userName: 'chefin', reason: 'MANUAL' });
   });
 
+  it('App-Update: Status, starten, läuft bereits', async () => {
+    host.update = {
+      running: false,
+      lastRun: '2026-11-18T20:00:00+00:00',
+      result: 'current',
+      message: 'Images sind aktuell (main)',
+    };
+    expect((await admin('GET', '/system/update')).json()).toMatchObject({
+      hostd: true,
+      running: false,
+      eventActive: false,
+      result: 'current',
+    });
+
+    const res = await admin('POST', '/system/update', {});
+    expect(res.statusCode).toBe(202);
+    expect(res.json()).toMatchObject({ running: true });
+    expect(host.updateCalls).toEqual([{ force: false }]);
+
+    const again = await admin('POST', '/system/update', {});
+    expect(again.statusCode).toBe(409);
+    expect(again.json()).toMatchObject({ error: 'UPDATE_RUNNING' });
+  });
+
+  it('App-Update während einer Veranstaltung nur mit force', async () => {
+    await setupEvent();
+    expect((await admin('GET', '/system/update')).json()).toMatchObject({ eventActive: true });
+
+    const res = await admin('POST', '/system/update', {});
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toMatchObject({ error: 'EVENT_ACTIVE' });
+    expect(host.updateCalls).toHaveLength(0);
+
+    expect((await admin('POST', '/system/update', { force: true })).statusCode).toBe(202);
+    expect(host.updateCalls).toEqual([{ force: true }]);
+  });
+
+  it('App-Update: für Kontrolleur:innen verboten', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/system/update',
+      cookies: { einlass_session: controllerCookie },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(403);
+    expect(host.updateCalls).toHaveLength(0);
+  });
+
   it('Herunterfahren: 202, für Kontrolleur:innen verboten', async () => {
     expect((await admin('POST', '/system/shutdown')).statusCode).toBe(202);
     const res = await app.inject({
