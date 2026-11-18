@@ -11,6 +11,8 @@ import {
   HostUnavailableError,
   type HostClient,
   type HostTimeStatus,
+  type HostUpdateStatus,
+  UpdateRunningError,
 } from '../src/host/hostd-client.js';
 
 /** Eigene, frisch migrierte Datenbank pro Testdatei. */
@@ -89,6 +91,19 @@ export class FakeHost implements HostClient {
 
   async shutdown() {}
   async reboot() {}
+
+  update: HostUpdateStatus = { running: false, lastRun: null, result: null, message: null };
+  readonly updateCalls: { force: boolean }[] = [];
+
+  async getUpdate() {
+    return this.update;
+  }
+
+  async startUpdate(force: boolean) {
+    if (this.update.running) throw new UpdateRunningError();
+    this.updateCalls.push({ force });
+    this.update = { ...this.update, running: true };
+  }
 }
 
 export const testConfig: Config = {

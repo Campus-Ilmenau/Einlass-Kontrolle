@@ -301,6 +301,36 @@ export const SystemTimeSchema = z.object({
 });
 export type SystemTime = z.infer<typeof SystemTimeSchema>;
 
+/** Ergebnis des letzten Laufs von einlass-update (infra/pi/files/einlass-update) */
+export const UpdateResultSchema = z.enum([
+  'current',
+  'updated',
+  'skipped',
+  'rolled-back',
+  'failed',
+  'offline',
+]);
+export type UpdateResult = z.infer<typeof UpdateResultSchema>;
+
+export const SystemUpdateSchema = z.object({
+  /** Host-Dienst erreichbar (sonst kein Update aus dem Admin-Panel möglich) */
+  hostd: z.boolean(),
+  /** Update läuft gerade */
+  running: z.boolean(),
+  /** Läuft gerade eine Veranstaltung? (Update unterbricht den Einlass kurz) */
+  eventActive: z.boolean(),
+  lastRun: InstantSchema.nullable(),
+  result: UpdateResultSchema.nullable(),
+  message: z.string().nullable(),
+});
+export type SystemUpdate = z.infer<typeof SystemUpdateSchema>;
+
+export const StartUpdateRequestSchema = z.object({
+  /** auch während einer laufenden Veranstaltung aktualisieren */
+  force: z.boolean().default(false),
+});
+export type StartUpdateRequest = z.infer<typeof StartUpdateRequestSchema>;
+
 export const SetTimeRequestSchema = z.object({ time: InstantSchema });
 export type SetTimeRequest = z.infer<typeof SetTimeRequestSchema>;
 

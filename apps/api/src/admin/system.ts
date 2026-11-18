@@ -1,5 +1,9 @@
 import {
   SetTimeRequestSchema,
+  StartUpdateRequestSchema,
+  type SystemUpdate,
+  SystemUpdateSchema,
+  UpdateResultSchema,
   type SystemTime,
   SystemTimeSchema,
   TimeSyncLogEntrySchema,
@@ -8,7 +12,9 @@ import type { FastifyInstance } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { TimeSyncLogSchema } from '../db/entities.js';
-import { ApiError } from '../http/errors.js';
+import { findActiveEvent } from '../events/active-event.js';
+import { UpdateRunningError } from '../host/hostd-client.js';
+import { ApiError, conflict } from '../http/errors.js';
 
 const hostUnavailable = () =>
   new ApiError(503, 'HOST_UNAVAILABLE', 'Host-Dienst nicht erreichbar (läuft die API auf dem Pi?)');
@@ -22,6 +28,19 @@ async function systemTime(app: FastifyInstance): Promise<SystemTime> {
     rtcPresent: host?.rtcPresent ?? null,
     rtcTime: host?.rtcTime ?? null,
     lastKnownTime: host?.lastKnownTime ?? null,
+  };
+}
+
+async function updateStatus(app: FastifyInstance): Promise<SystemUpdate> {
+  const host = app.host.available ? await app.host.getUpdate().catch(() => null) : null;
+  const result = UpdateResultSchema.safeParse(host?.result);
+  return {
+    hostd: host !== null,
+    running: host?.running ?? false,
+    eventActive: (await findActiveEvent(app.dataSource, app.now())) !== null,
+    lastRun: host?.lastRun ?? null,
+    result: result.success ? result.data : null,
+    message: host?.message ?? null,
   };
 }
 
@@ -84,6 +103,34 @@ export const adminSystemRoutes: FastifyPluginAsyncZod = async (app) => {
         reason: t.reason,
         createdAt: t.createdAt.toISOString(),
       }));
+    },
+  );
+
+  /** App-Update: neueste Images (Stand main bzw. EINLASS_VERSION) holen und neu starten */
+  app.get('/update', { schema: { response: { 200: SystemUpdateSchema } } }, async () =>
+    updateStatus(app),
+  );
+
+  app.post(
+    '/update',
+    { schema: { body: StartUpdateRequestSchema, response: { 202: SystemUpdateSchema } } },
+    async (request, reply) => {
+      if (!app.host.available) throw hostUnavailable();
+      const { force } = request.body;
+      if (!force && (await findActiveEvent(app.dataSource, app.now()))) {
+        throw conflict(
+          'EVENT_ACTIVE',
+          'Es läuft eine Veranstaltung – das Update unterbricht den Einlass kurz',
+        );
+      }
+      try {
+        await app.host.startUpdate(force);
+      } catch (err) {
+        if (err instanceof UpdateRunningError) throw conflict('UPDATE_RUNNING', err.message);
+        throw hostUnavailable();
+      }
+      request.log.warn({ by: request.currentUser!.name, force }, 'App-Update angefordert');
+      return reply.code(202).send(await updateStatus(app));
     },
   );
 
