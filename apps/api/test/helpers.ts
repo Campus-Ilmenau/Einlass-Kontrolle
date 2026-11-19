@@ -89,8 +89,14 @@ export class FakeHost implements HostClient {
     };
   }
 
-  async shutdown() {}
-  async reboot() {}
+  readonly powerCalls: ('shutdown' | 'reboot')[] = [];
+
+  async shutdown() {
+    this.powerCalls.push('shutdown');
+  }
+  async reboot() {
+    this.powerCalls.push('reboot');
+  }
 
   update: HostUpdateStatus = { running: false, lastRun: null, result: null, message: null };
   readonly updateCalls: { force: boolean }[] = [];

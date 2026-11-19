@@ -80,20 +80,72 @@ function Qr({ text }: { text: string }) {
   );
 }
 
+/** Langer Druck (ohne Wischen) → Callback. Wischen der Seiten funktioniert weiter. */
+const LONG_PRESS_MS = 1500;
+const LONG_PRESS_MOVE_PX = 15;
+
+function LongPress({ onLongPress, children }: { onLongPress?: () => void; children: ReactNode }) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  const [pressed, setPressed] = useState(false);
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    origin.current = null;
+    setPressed(false);
+  };
+  useEffect(() => cancel, []);
+  if (!onLongPress) return <>{children}</>;
+  return (
+    <div
+      onPointerDown={(e) => {
+        origin.current = { x: e.clientX, y: e.clientY };
+        setPressed(true);
+        timer.current = setTimeout(() => {
+          cancel();
+          onLongPress();
+        }, LONG_PRESS_MS);
+      }}
+      onPointerMove={(e) => {
+        const o = origin.current;
+        if (o && Math.hypot(e.clientX - o.x, e.clientY - o.y) > LONG_PRESS_MOVE_PX) cancel();
+      }}
+      onPointerUp={cancel}
+      onPointerCancel={cancel}
+      onContextMenu={(e) => e.preventDefault()}
+      style={{
+        transform: pressed ? 'scale(0.96)' : 'none',
+        transition: `transform ${LONG_PRESS_MS}ms linear`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /** WLAN-QR-Format: Sonderzeichen \ ; , : " escapen */
 const wifiEscape = (s: string) => s.replace(/[\\;,:"]/g, (c) => `\\${c}`);
 
 // ─── ① Willkommen ──────────────────────────────────────────────────────────
 
-export function WelcomeView({ info }: { info?: DisplayInfo }) {
+export function WelcomeView({
+  info,
+  onWifiLongPress,
+}: {
+  info?: DisplayInfo;
+  /** Langer Druck auf den WLAN-QR-Code (öffnet das Geräte-Menü) */
+  onWifiLongPress?: () => void;
+}) {
   const now = useNow();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: vw(4), height: '100%' }}>
       <div style={{ ...card, display: 'flex', alignItems: 'center', gap: vw(4) }}>
         {info?.wifi && (
-          <Qr
-            text={`WIFI:T:WPA;S:${wifiEscape(info.wifi.ssid)};P:${wifiEscape(info.wifi.password)};;`}
-          />
+          <LongPress onLongPress={onWifiLongPress}>
+            <Qr
+              text={`WIFI:T:WPA;S:${wifiEscape(info.wifi.ssid)};P:${wifiEscape(info.wifi.password)};;`}
+            />
+          </LongPress>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: vw(2), minWidth: 0 }}>
           <Bi de="1 · WLAN verbinden" en="Connect to Wi-Fi" />
@@ -491,6 +543,125 @@ function ScanResult({ scan }: { scan: DisplayScanEvent | null }) {
       )}
       <div style={{ fontSize: vw(3.4), opacity: 0.8 }}>
         vor {ago} · {ago} ago
+      </div>
+    </div>
+  );
+}
+
+// ─── Geräte-Menü (langer Druck auf den WLAN-QR-Code) ────────────────────────
+
+type PowerAction = 'shutdown' | 'reboot';
+
+/** Herunterfahren/Neustart des Pi direkt am Display. Schließt sich nach 30 s von selbst. */
+export function PowerMenu({
+  onAction,
+  onClose,
+}: {
+  onAction: (action: PowerAction) => Promise<unknown>;
+  onClose: () => void;
+}) {
+  const [state, setState] = useState<
+    { kind: 'idle' } | { kind: 'busy' | 'done'; action: PowerAction } | { kind: 'error' }
+  >({ kind: 'idle' });
+
+  useEffect(() => {
+    if (state.kind !== 'idle' && state.kind !== 'error') return;
+    const t = setTimeout(onClose, 30_000);
+    return () => clearTimeout(t);
+  }, [state.kind, onClose]);
+
+  const run = (action: PowerAction) => {
+    setState({ kind: 'busy', action });
+    onAction(action).then(
+      () => setState({ kind: 'done', action }),
+      () => setState({ kind: 'error' }),
+    );
+  };
+
+  const button = (bg: string): CSSProperties => ({
+    width: '100%',
+    border: 0,
+    borderRadius: vw(3),
+    padding: vw(4),
+    background: bg,
+    color: '#fff',
+    cursor: 'none',
+    textAlign: 'center',
+  });
+
+  return (
+    <div
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
+      onClick={() => state.kind !== 'busy' && state.kind !== 'done' && onClose()}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 10,
+        background: 'rgba(0,0,0,0.75)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: vw(6),
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          ...card,
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: vw(4),
+          padding: vw(6),
+        }}
+      >
+        {state.kind === 'done' ? (
+          <div style={{ textAlign: 'center', padding: `${vw(6)} 0` }}>
+            {state.action === 'shutdown' ? (
+              <Bi
+                de="Pi fährt herunter – nach ca. 30 s Strom trennen"
+                en="Shutting down – unplug after about 30 s"
+                size={5}
+              />
+            ) : (
+              <Bi de="Pi startet neu – ca. 1 Minute" en="Restarting – about 1 minute" size={5} />
+            )}
+          </div>
+        ) : (
+          <>
+            <Bi de="Gerät" en="Device" size={6} />
+            {state.kind === 'error' && (
+              <div style={{ color: '#ff7875', fontSize: vw(3.6) }}>
+                Fehlgeschlagen – Host-Dienst nicht erreichbar · Failed
+              </div>
+            )}
+            <button
+              type="button"
+              disabled={state.kind === 'busy'}
+              onClick={() => run('shutdown')}
+              style={button(C.red)}
+            >
+              <Bi de="Herunterfahren" en="Shut down" size={5.5} />
+            </button>
+            <button
+              type="button"
+              disabled={state.kind === 'busy'}
+              onClick={() => run('reboot')}
+              style={button(C.blue)}
+            >
+              <Bi de="Neu starten" en="Restart" size={5.5} />
+            </button>
+            <button
+              type="button"
+              disabled={state.kind === 'busy'}
+              onClick={onClose}
+              style={button('#374151')}
+            >
+              <Bi de="Abbrechen" en="Cancel" size={4.5} />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
