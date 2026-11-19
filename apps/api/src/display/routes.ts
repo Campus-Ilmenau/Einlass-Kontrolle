@@ -107,6 +107,22 @@ export const displayApiRoutes: FastifyPluginAsyncZod = async (app) => {
     },
   );
 
+  /** Herunterfahren/Neustart direkt am Display (langer Druck auf den WLAN-QR-Code) */
+  for (const action of ['shutdown', 'reboot'] as const) {
+    app.post(`/${action}`, async (request, reply) => {
+      if (!app.host.available) {
+        throw new ApiError(503, 'HOST_UNAVAILABLE', 'Host-Dienst nicht erreichbar');
+      }
+      request.log.warn({ by: 'display' }, `Pi: ${action} am Display angefordert`);
+      try {
+        await (action === 'shutdown' ? app.host.shutdown() : app.host.reboot());
+      } catch {
+        throw new ApiError(503, 'HOST_UNAVAILABLE', 'Host-Dienst nicht erreichbar');
+      }
+      return reply.code(202).send({ ok: true, action });
+    });
+  }
+
   /** Live-Stream (Server-Sent Events): `scan` nach jeder Kontrolle, `next` wenn das Ergebnis weggetippt wurde. */
   app.get('/stream', async (request, reply) => {
     reply.hijack();

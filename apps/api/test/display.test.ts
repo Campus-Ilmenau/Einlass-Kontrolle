@@ -6,6 +6,7 @@ import {
   createTestDatabase,
   createUser,
   sessionCookie,
+  type FakeHost,
   testConfig,
   type TestClock,
 } from './helpers.js';
@@ -14,6 +15,7 @@ let dataSource: DataSource;
 let drop: () => Promise<void>;
 let app: Awaited<ReturnType<typeof createTestApp>>['app'];
 let clock: TestClock;
+let host: FakeHost;
 let adminCookie: string;
 let controllerCookie: string;
 
@@ -36,7 +38,7 @@ const loginAs = async (name: string) =>
 
 beforeEach(async () => {
   await dataSource.query('TRUNCATE users, free_lists, events, settings CASCADE');
-  ({ app, clock } = await createTestApp(dataSource));
+  ({ app, clock, host } = await createTestApp(dataSource));
   await createUser(dataSource, { name: 'chefin', role: 'ADMIN' });
   await createUser(dataSource, { name: 'tuer1' });
   adminCookie = await loginAs('chefin');
@@ -99,6 +101,35 @@ describe('Display-Token', () => {
     const res = await noDisplay.inject({ method: 'GET', url: `/api/display/info?token=${TOKEN}` });
     expect(res.statusCode).toBe(404);
     expect(res.json().error).toBe('DISPLAY_DISABLED');
+  });
+});
+
+describe('Herunterfahren/Neustart am Display', () => {
+  it('mit Token: 202 und Aufruf des Host-Dienstes', async () => {
+    for (const action of ['shutdown', 'reboot'] as const) {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/display/${action}`,
+        headers: { 'x-display-token': TOKEN },
+      });
+      expect(res.statusCode).toBe(202);
+    }
+    expect(host.powerCalls).toEqual(['shutdown', 'reboot']);
+  });
+
+  it('ohne oder mit falschem Token → 401, nichts passiert', async () => {
+    for (const headers of [{}, { 'x-display-token': 'falsch' }]) {
+      const res = await app.inject({ method: 'POST', url: '/api/display/shutdown', headers });
+      expect(res.statusCode).toBe(401);
+    }
+    // Admin-Sitzung ersetzt das Display-Token nicht
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/display/shutdown',
+      cookies: { einlass_session: adminCookie },
+    });
+    expect(res.statusCode).toBe(401);
+    expect(host.powerCalls).toHaveLength(0);
   });
 });
 

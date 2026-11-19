@@ -1,7 +1,8 @@
 import type { DisplayScanEvent } from '@einlass/shared';
 import { type PointerEvent, type ReactNode, useCallback, useRef, useState } from 'react';
+import { api } from '../../api/client';
 import { useDisplayInfo, useDisplayStats, useDisplayToken, useLiveScans } from './useDisplayData';
-import { type LastResult, ScanView, StatsView, WelcomeView } from './views';
+import { type LastResult, PowerMenu, ScanView, StatsView, WelcomeView } from './views';
 
 const PAGES = 3;
 /** Ab dieser Wischstrecke (px) wird die Seite gewechselt */
@@ -18,6 +19,13 @@ export function DisplayPage() {
   const [page, setPage] = useState(0);
   const [last, setLast] = useState<LastResult | null>(null);
   const [drag, setDrag] = useState(0);
+  const [powerMenu, setPowerMenu] = useState(false);
+  const closePowerMenu = useCallback(() => setPowerMenu(false), []);
+  const power = useCallback(
+    (action: 'shutdown' | 'reboot') =>
+      api(`/display/${action}`, { method: 'POST', headers: { 'X-Display-Token': token } }),
+    [token],
+  );
   const start = useRef<{ x: number; y: number } | null>(null);
 
   const onScan = useCallback((e: DisplayScanEvent) => {
@@ -86,7 +94,7 @@ export function DisplayPage() {
         }}
       >
         <Page>
-          <WelcomeView info={info.data} />
+          <WelcomeView info={info.data} onWifiLongPress={() => setPowerMenu(true)} />
         </Page>
         <Page>
           <StatsView stats={stats.data} />
@@ -139,6 +147,8 @@ export function DisplayPage() {
           }}
         />
       </div>
+
+      {powerMenu && <PowerMenu onAction={power} onClose={closePowerMenu} />}
     </div>
   );
 }
