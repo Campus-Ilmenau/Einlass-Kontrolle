@@ -67,6 +67,7 @@ function Qr({ text }: { text: string }) {
         <img
           src={src}
           alt=""
+          draggable={false}
           style={{
             width: '100%',
             height: '100%',
@@ -113,7 +114,14 @@ function LongPress({ onLongPress, children }: { onLongPress?: () => void; childr
       onPointerUp={cancel}
       onPointerCancel={cancel}
       onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
       style={{
+        // Touch: Ohne das bricht Chromium einen langen Druck mit pointercancel ab
+        // (Bild-Drag/Kontextmenü bzw. vertikales Scrollen). Wischen übernimmt die Seite selbst.
+        touchAction: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
         transform: pressed ? 'scale(0.96)' : 'none',
         transition: `transform ${LONG_PRESS_MS}ms linear`,
       }}
@@ -563,6 +571,9 @@ export function PowerMenu({
   const [state, setState] = useState<
     { kind: 'idle' } | { kind: 'busy' | 'done'; action: PowerAction } | { kind: 'error' }
   >({ kind: 'idle' });
+  // Nur schließen, wenn der Tipp auch auf dem Hintergrund *begonnen* hat. Sonst schließt das
+  // Loslassen des langen Drucks (erzeugt einen Klick an dieser Stelle) das Menü sofort wieder.
+  const downOnBackdrop = useRef(false);
 
   useEffect(() => {
     if (state.kind !== 'idle' && state.kind !== 'error') return;
@@ -591,9 +602,16 @@ export function PowerMenu({
 
   return (
     <div
-      onPointerDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        downOnBackdrop.current = e.target === e.currentTarget;
+      }}
       onPointerUp={(e) => e.stopPropagation()}
-      onClick={() => state.kind !== 'busy' && state.kind !== 'done' && onClose()}
+      onClick={(e) => {
+        const fromBackdrop = downOnBackdrop.current && e.target === e.currentTarget;
+        downOnBackdrop.current = false;
+        if (fromBackdrop && state.kind !== 'busy' && state.kind !== 'done') onClose();
+      }}
       style={{
         position: 'fixed',
         inset: 0,
